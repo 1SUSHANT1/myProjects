@@ -1,0 +1,11 @@
+#!/sbin/openrc-run
+
+name="Gunicorn"
+
+command_user="gunicorn:webManagers"
+
+command="/home/user/myWebsite/restartServices/gunicornStart"
+
+depend(){
+	need net
+}
