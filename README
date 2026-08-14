@@ -1,0 +1,124 @@
+MY PROJECTS
+
+This repository contains my personal projects and technical documentation on Linux systems, web infrastructure, networking, cybersecurity, and software development.
+
+PROJECTS
+
+1. Repurposing My Old Phone into an ARM Linux Web Server
+
+Repurposed an old Android smartphone into an ARM Linux web server.
+
+The project covers unlocking the bootloader, flashing Linux images, installing and configuring Linux on the phone, and configuring the server so it can be accessed over SSH.
+
+Focus: Linux, ARM, web servers, networking, system administration
+
+Project:
+https://www.sushantadk.com/Projects/repurposingMyOldPhone.html
+
+2. Security Hardening and Assessment of a Self-Hosted ARM Alpine Linux Web Server
+
+Security assessment and hardening of my self-hosted ARM Linux web server.
+
+The project approaches the server from an attacker's perspective first, identifying exposed services and potential weaknesses before implementing security improvements.
+
+Focus: Linux security, network security, firewall configuration, SSH, web server security, system hardening
+
+Project:
+https://www.sushantadk.com/Projects/hardeningTheServer.html
+
+3. Numbers to Words Converter
+
+A program that converts numerical values into their written-word representation.
+
+This project demonstrates programming fundamentals, algorithm development, input handling, and integration of compiled software with a web application.
+
+Focus: C++, algorithms, input processing, Flask integration
+
+Project:
+https://www.sushantadk.com/Projects/numbersToWords.html
+
+4. Sunnyland
+
+A 2D platform game developed using the Unity game engine.
+
+The project explores game development concepts including gameplay programming, level design, player movement, and interactive game systems.
+
+Focus: C#, Unity, game development
+
+Project:
+https://www.sushantadk.com/Projects/sunnyland.html
+
+SUPPORTING DOCUMENTS
+
+The following documents describe infrastructure and engineering work associated with my projects.
+
+1. Initial Configuration of My Website
+
+Documentation of the initial creation and organization of my website, including the structure of its HTML pages and supporting files.
+
+Focus: HTML, website structure, file organization
+
+Documentation:
+https://www.sushantadk.com/SupportingDocuments/myWebsite.html
+
+2. Domain Registration, DNS, and Security Configuration
+
+Documentation covering domain registration, DNS configuration, Cloudflare, and security configuration required to make the website publicly accessible.
+
+Focus: DNS, networking, Cloudflare, HTTPS, web security
+
+Documentation:
+https://www.sushantadk.com/SupportingDocuments/domainRegistrationAndDNSConfiguration.html
+
+3. Building a Server
+
+Documentation of the process of building and configuring a server from the ground up. This one probably belongs in Projects rather than Supporting Documents.
+
+Focus: Linux, hardware, system administration, server configuration
+
+Documentation:
+https://www.sushantadk.com/SupportingDocuments/buildingAServer.html
+
+TECHNOLOGIES AND SKILLS
+
+Programming:
+C
+C++
+C#
+Python
+HTML
+
+Systems and Infrastructure:
+Linux
+ARM Linux
+Server administration
+Web servers
+Networking
+DNS
+HTTPS/TLS
+Cloudflare
+
+Security:
+Linux hardening
+Firewall configuration
+SSH security
+Web server security
+Security assessment
+
+Tools and Frameworks:
+
+Git
+Unity
+Flask
+Apache
+Nginx
+Gunicorn
+Certbot
+
+ABOUT
+
+This repository is my attempt to build a personal, hands-on, and free learning environment while documenting the process for others who wish to do the same. My personal website and server infrastructure provide a practical environment for learning Linux administration, networking, web deployment, automation, and security. My production server is a repurposed Redmi Note 10 Pro running postmarketOS, my backup server is an old HP Pavilion laptop running Debian 13, my personal laptop runs Ubuntu, and my attack machine runs Kali Linux.
+
+If a project is mentioned on my website/repository but is not included in the README, it is probably because the project has just started and is incomplete. 
+
+Visit my website at: https://www.sushantadk.com/
