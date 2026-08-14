@@ -1,0 +1,10 @@
+#!/bin/bash
+
+echo "killing old gunicorn"
+pkill -x gunicorn >/dev/null 2>&1 || true
+
+cd /home/user/myWebsite || exit 1
+
+echo "starting new"
+
+nohup  /home/user/myWebsite/venv/bin/gunicorn --bind 127.0.0.1:8000 myPyScript:app --chdir /home/user/myWebsite  >/home/user/myWebsite/gunicorn.log 2>&1 &

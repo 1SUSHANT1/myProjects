@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Hardening and Assessment</title>
+</head>
+<body>
+    <h1>Security Hardening and Assessment of a Self-Hosted ARM Linux Web Server
+ </h1>
+
+ <h2>Project Status: Complete for current scope. May be revisited later.</h2>
+
+
+<p>This is my first time doing a server hardening assessment. I've read about it, but actually implementing it is a completely different challenge than just understanding the concepts.
+Like most of my other projects, this paper is written as I proceed.
+My server runs Alpine Linux, which is very minimal with a small attack surface, and is current only hosting a simple website, so this paper may only touch on what to do, why to do it, and how to do it. Meaning, there might be more of the assessment, and less of the hardening.</p>
+
+<h2>Current Structure</h2>
+</p>The current structure of my server is like this:</p>
+
+<p>Internet -> Cloudflare -> Router -> My Server -> Linux Firewall-> Apache -> Gunicorn -> Flask -> Files and Executables.</p>
+
+</p>Clients on the internet searching for my website <em>www.sushantadk.com</em>, connect to Cloudflare. Cloudflare, acting as a reverse proxy, connects to my public IP address. My router receives that traffic and forwards ports 80 and 443, HTTP and HTTPS, to my server. Once the traffic reaches my server, the Linux firewall examines incoming packets and allows or blocks them. I have configured the firewall to allow incoming connections on port 80 and 443 . Apache is listening on ports 80 and 443, which reverse proxies the traffic to Gunicorn. Gunicorn is the bridge between Apache and my python application Flask. Flask maps URL routes to Python view functions, which may access files, execute programs, or generate responses. My Flask application can accept user input, invokes server-side executables when appropriate, and returns their output. My admin page on the website is password protected with Basic Auth.</p>
+
+</p>Some vulnerabilities to note are, if someone figures out my home IP address, they may bypass the security controls on Cloudflare by directly connecting to my server. Malicious traffic can be sent over HTTP or HTTPS connections. HTTPS can be downgraded to HTTP. </p>
+
+</p>Places I've unintentionally made secure are by making Gunicorn listen only on local host for Apache so it can't be directly accessed from the internet.</p>
+
+<h2>Scope</h2>
+<p>This assessment is limited to the server itself. It evaluates the operating system, installed services, network configuration, user accounts, file permissions, web server, application server, and application configuration running on the host. External infrastructure such as the router, Cloudflare, DNS configuration, and client devices are considered out of scope except where they directly affect the server's operation.</p>
+
+
+
+<h2>Approach</h2>
+</p>I couldn't find a standard approach to take when hardening a server, so I decided to perform the assessment from the outside (internet) working inwards (files on my server). Logic, I want to see what an attacker sees. Then I am going to harden from the inside working to the outside. Logic, I want to start from the data and applications and progressively securing the layers that control access to them. Finally, I will reassess the server from the outside to determine whether the changes actually reduced the attack surface.</p>
+</p>I already know it is not the most efficient way but this will have to do for my first hardening project. It will look like someone came and assessed the system and documented the assessment and someone else took that assessment and hardened the server.</p>
+
+<h2>Initial Assessment</h2>
+</p>Initial assessment is where we get to know what's happening in our system. After each section, there is a note which tells us what we should focus on in the hardening phase. </p>
+
+
+
+<h3>Cloudflare </h3>
+</p>My Cloudflare configuration can be found here: <a href="https://www.sushantadk.com/SupportingDocuments/domainRegistrationAndDNSConfiguration.html">Domain Registration, DNS and Security Configuration</a></p>
+
+</p><b>Note:</b> People can currently bypass Cloudflare, and connect directly to my server with my public IPv4 address. Maybe there is a way to make my server respond to only Cloudflare's IP range. </p>
+
+<h3>Router</h3>
+</p>My router setup is very simple, it just has port forwarding enabled to forward HTTP and HTTPS to my server.</p>
+
+</p><b>Note:</b> Looks like there is nothing else of significance on the router. Maybe secure the physical access to it and keep logs in case configurations change.</p>
+
+<h3>Server</h3>
+<b>Operating System</b>
+</p>Let's see the current versions of Alpine release, OS release, and kernel version.</p>
+</p>Run these commands: <code>cat /etc/alpine-release, cat /etc/os-release, uname -a</code>.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-07-31 13-53-20.png" alt ="" width="750" height="450">
+
+
+</p><b>Note:</b> Check if the OS, Alpine, and kernel are the latest version available.</p>
+
+<b>Running Services</b>
+
+</p>Let's take a look the status of all the OpenRC services that were started at least once since last boot. To do this, run <code>rc-status</code>.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-07-31 14-32-30.png" alt ="" width="750" height="450">
+
+
+</p>You can see that most of the OpenRC services are still running, some have stopped and some have crashed. </p>
+
+
+</p>Next, let's inspect which services are configured for each runlevel. To do this, run <code>rc-update show</code>.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-07-31 14-32-49.png" alt ="" width="750" height="450">
+
+</p>I see services operating on four different runlevels.  <em>sysinint</em> initializes the system, <em>boot</em> starts core system services, <em>default</em> starts the services for normal operating state, and <em>shutdown</em> is used when the system is shutting down. I can see all the services I added to the default runlevel here.</p>
+
+</p>Next, let's inspect root's crontab. The first 5 jobs, I suspect came with the operating system, but the last two, battery controller, and the DDNS script were added by me.</p>
+
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-07-31 14-34-24.png" alt ="" width="750" height="450">
+
+</p>Next, let's inspect all the OpenRC services available on the system. Run <code>ls /etc/init.d/</code></p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-07-31 14-35-30.png" alt ="" width="750" height="450">
+
+</p>These are all the services that can be started, stopped, or added to default runlevel through OpenRC.</p>
+
+<b>Note:</b> Take a very close look at the services that are automatically initialized during boot, and cron jobs. Also, make sure <em>init.d</em> doesn't contain something vulnerable.
+
+
+<h3>Firewall</h3>
+
+</p>Let's inspect the firewall configuration. In my server, the firewall configuration file is at /etc/nftables.nft.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-07-31 13-29-05.png" alt ="" width="750" height="450">
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-07-31 13-29-18.png" alt ="" width="750" height="450">
+
+</p>It looks like my firewall is configured to do following things:</p>
+<ul>
+<li>Accept any localhost traffic</li>
+<li>Accept traffic originated from the server</li>
+<li>Drop invalid connections</li>
+<li>Allow all HTTP and HTTPS (I added these)</li>
+<li>Reject port 113 connections</li>
+<li>Accept ICMP</li>
+<li>Accept basic IPv6 functionality</li>
+<li>Allow IPv6 SLACC</li>
+<li>Accept DHCPv6 replies from IPv6 link-local addresses</li>
+<li><em>hook forward; policy drop</em> Drops the packets routed through the server</li>
+<li><em>hook output; policy accept</em> Enables programs running on the server to make outbound connections</li>
+</ul>
+<b>Note:</b>  Nothing here seems out of the ordinary. But maybe we can configure the firewall to only accept HTTP and HTTPS traffic only from Cloudflare's IP range.
+
+
+<h2> Listening Ports</h2>
+
+</p>Let's take a look at the listening sockets on the machine.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-02 13-23-05.png" alt ="" width="750" height="450">
+
+</p>I can recognize pretty much all of these. </p>
+
+<ul>
+<li><em>dnsmasq</em> is providing DNS on the loopback interface by listening on port 53.</li>
+<li><em>NetworkManager</em> is listening  for DHCPv6 traffic on the link-local interface on port 546.</li>
+<li><em>sshd</em> is listening for all incoming SSH connections on port 22.</li>
+<li><em>gunicorn</em> is listening on the loopback interface on port 8000. This is where it gets traffic from Apache.</li>
+<li><em>Apache</em> (<em>httpd</em>) is listening for incoming HTTP and HTTPS connections on ports 80 and 443.</li>
+</ul>
+
+</p><b>Note:</b> Should sshd listen for all incoming connections over all interfaces? Should Apache accept all incoming connections from all IP addresses?</p>
+
+<h2>Users/privileges</h2>
+</p><b>User Accounts</b></p>
+
+</p>Let's take a look at the list of users on the system. This includes the user accounts and the service accounts. We are trying to see if something screams 'DANGER'. To do this, let's run <code>cat /etc/passwd</code>.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-03 12-04-51.png" alt ="" width="750" height="450">
+
+
+</p>The accounts root, user, and BobbyV ending on <code>/bin/sh</code> or <code>/bin/ash</code> can get a shell which is expected because they are all user accounts. However, having an user account with username <em>user</em> is not very safe. I see sync ends in <code>/sync</code>, shutdown ends in <code>/shutdown</code>, and halt ends in <code>/halt</code> which is all expected behavior. For all the remaining accounts, there are some that I recognize, some that I don't but all of which end in <code>/nologin</code>. While further inspection is needed to make sure I recognize and want all of those accounts in the system, nothings screams obvious danger here.</p>
+
+<b>Groups</b>
+
+</p>Next, let's inspect groups on the system. To do this, let's run <code>cat /etc/group</code>. I was banging my head on the wall before I figured the file is group, not groups (I was running <code>cat /etc/groups</code>).</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-03 12-20-53.png" alt ="" width="750" height="450">
+
+
+</p>Let's look at the wheel group, which has the users who can become root. I see it has the users root, BobbyV, and user which is expected. And Again, even though I don't recognize all of these groups, and closer inspection is required, nothing here stands out so let's just move on to next assessment section.</p>
+
+<b>Login Methods</b>
+
+</p>Now let's take a look at login methods. We already saw in the listening ports section, ssh was listening on port 22, and was the only service listening for remote administration. So let's see how SSH is configured to handle login. Let's send test command to SSH daemon using <code>sshd -t</code>, and pipe the output to grep to filter for appropriate results. You might have to play around to see what gives you the most reliable results but  what worked for me was <code>sudo sshd -T | grep -Ei 'key|root|password'</code> .</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-03 15-54-39.png" alt ="" width="750" height="450">
+
+</p>We can see that Root cannot login using password but can login using SSH key. However, the safest implementation is to disable root login entirely. We can see that password authentication is enabled. Empty passwords are not allowed. Public key authentication is accepted.</p>
+
+</p>Let's inspect SSH keys for all the users. I am doing this from root account and manually taking a look at the .ssh directory for each user. Run <code>ls /home/userName/.ssh</code>.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-03 16-10-45.png" alt ="" width="750" height="450">
+
+</p>I see user has <em>known_hosts</em> file but no ssh keys. Root and BobbyV don't even have the .ssh directory meaning SSH keys aren't configured for any of the accounts. </p>
+
+</p><b>Note:</b> Change the username 'user'. Inspect all the users and groups. Consider disabling remote root login. Consider adding SSH keys for the user accounts.</p>
+
+<h2>Apache</h2>
+</p>Now this is where things start to get interesting. Apache is where the internet meets my server. Making sure Apache is configured correctly is one of the most crucial things I can do for my current setup. </p>
+
+<b>Version</b>
+
+</p>First, let's check which version of Apache is running on the system and what user it is running as Run <code>httpd-v</code> and <code>cat /etc/passwd | grep apache</code></p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 13-41-46.png" alt ="" width="750" height="450">
+
+
+</p>We see the running version is Apache/2.4.68 (Unix), and it is running as apache service account. We already know it is listening for all incoming connections on port 80 and 443. </p>
+
+<b>Modules</b>
+
+</p>We know that Apache's binary is httpd. Let's run <code>httpd -M</code> to inspect installed modules in Apache.</p>
+
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-04 01-15-33.png" alt ="" width="750" height="450">
+
+</p>Again, I don't recognize all of these, I can see some proxy modules, some authorization and authentication modules, some familiar names like ssl_module, core_module etc. I don't think that I need all of these just to run my server, but none of these look like an obvious threat, so even though further investigation is required, let's move on for now.</p>
+
+<b>HTTP to HTTPS redirection</b>
+
+</p>To check for HTTP to HTTPS redirection, we can simply go to <em>http://sushantadk.com</em> and if the link automatically turns to <em>https://sushantadk.com</em>, the redirection is enabled. I tried this and the HTTP link did change to HTTPS so the redirection is enabled. But wait a minute. Is the redirection being done from the Cloudflare's orange cloud or the server? To check this, run <code>curl -I http://yourPublicIPAddress</code></p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-04 03-27-51.png" alt ="" width="750" height="450">
+
+</p>This means that Cloudflare is redirecting HTTP traffic to HTTPS but the server is not. It means that if someone accesses the server from using the public IP address, bypassing Cloudflare, they can get a HTTP connection.</p>
+
+
+<b> Certificate</b>
+
+</p>A digital certificate is crucial for HTTPS connections. Let's inspect the certificate installed on the server. Let's run <code>openssl s_client -connect sushantadk.com:443 -servername sushantadk.com</code>.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-04 01-44-11.png" alt ="" width="750" height="450">
+
+</p>We see in the certificate chain 0, CN=sushantadk.com, the server has a Google Trust Services certificate valid until Oct 18. However, this is the certificate presented by Cloudflare. This certificate is used to secure the connection between Cloudflare and the client and is managed by Cloudflare so we don't need to worry about it's expiration and renewal. But what about the connection between the server and Cloudflare? That connection's encryption and security is handled using the certificate on the server. Let's inspect that. First, to figure out where the certificate is, run <code>grep -R "SSLCertificate" /etc/apache2/</code>.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-04 02-02-33.png" alt ="" width="750" height="450">
+
+</p>We see that the certificate was issued by Let's Encrypt. Let's go to <code>/etc/letsencrypt/live/sushantadk.com/</code> and run <code>cat README</code>. It has some helpful information and reveals that certbot is handling the certificate on the server. </p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-04 02-06-55.png" alt ="" width="750" height="450">
+
+</p>From the same directory, let's run <code>openssl x509 -in fullchain.pem -noout -dates</code> to see when the certificate expires.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-04 02-13-36.png" alt ="" width="750" height="450">
+
+</p>It looks like the certificate expires on Oct 21.  Since we already know certbot manages this certificate, let's see if the renewal is automated.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-04 02-31-34.png" alt ="" width="750" height="450">
+
+</p>I inspected the crontab but there wasn't a script from certbot. Also there doesn't seem to be an OpenRC service monitoring this. I took a look at the <code>/etc/letsencrypt/renewal/sushantadk.conf</code> file and saw that certbot was using standalone authenticator. Meaning, certbot runs it's own server, performs its checks and then grants the certificate. Let's check if it can do that. Run <code>certbot renew --dry-run</code> to simulate a certificate renewal.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-04 02-16-43.png" alt ="" width="750" height="450">
+
+</p>It appears that certbot uses port 80 to renew the certificate but because another service (apache) is already using the port, it could not bind to port 80 and renewal failed. Now we can be certain that on Oct 21, the renewal would've failed for 2 reasons. First, renewal isn't automated, and second, the renewal clashes with the running apache server. Whoever is managing this sever is doing a very poor job. </p>
+
+</p>Finally, let's see if the server is using TLS. </p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-04 02-58-02.png" alt ="" width="750" height="450">
+
+</p>SSLEngine: on suggests that the server does use TLS on port 443 when running inside the VirtualHost. This suggests that the server also runs from the VirtualHost. If it doesn't, then it is a big problem.</p>
+
+</p>Finally, let's make sure that apache starts automatically after boot. Run <code>rc-update show | grep apache2</code>.</body><p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 13-26-04.png" alt ="" width="750" height="450">
+
+
+</p>We can see that since it's runlevel is default, it does start automatically at boot. Good.</p>
+
+</p><b>Note:</b> Make sure the latest version of apache is installed. Inspect all the apache modules and consider removing the ones that are not  being used.  Implement HTTP to HTTPS redirection on the server. Add an automated job to renew the Let's Encrypt certificate when it expires. Write a script to renew the certificate so that there is no clash with Apache on port 80.</p>
+
+<h2>Gunicorn</h2>
+<b>Version and Startup</b>
+</p>First, let's see the running version of Gunicorn and if it starts automatically at boot. Since Gunicorn is running from a virtual environment in my setup, let's activate the virtual environment and run <code>gunicorn --version</code> and <code> rc-update show | grep gunicorn</code>.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 13-50-56.png" alt ="" width="750" height="450">
+
+</p>We see the running version of Gunicorn is gunicorn (version 26.0.0) and it does start at boot.
+
+<b>Listening sockets</b>
+
+</p>Let's see where Gunicorn is listening. Run <code> ss -tulnp | grep gunicorn </code>.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 13-52-41.png" alt ="" width="750" height="450">
+
+We see it is listening on the loopback address on port 8000. Meaning, it is listening on localhost port 8000. This is more secure because since Apache is already facing the internet, there is no need for Gunicorn to do the same.</p>
+
+<b>User</b>
+
+</p>I was unable to see what user was Gunicorn running as from <code> cat /etc/passwd | grep gunicorn</code>. So let's inspect the Gunicorn process currently running. Run <code>ps  | grep gunicorn</code>.</p>
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 14-08-30.png" alt ="" width="750" height="450">
+
+</p>Okay here we see that gunicorn is running entirely as root. It is being started by root and running as root.  Gunicorn only serves flask on an unprivileged local port, and root privileges are unnecessary for it. In case someone discovers a remote code execution vulnerability on flask, gunicorn can execute that code as root which can hand the attackers complete control of the system.</p>
+
+<b>Further inspection</b>
+
+</p>Gunicorn running as root raised a few alarms in my head so let'd do some further digging to see why that is. Run <code>cat /etc/init.d/gunicorn</code> to see the initialization script for Gunicorn.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 14-22-27.png" alt ="" width="750" height="450">
+
+</p>We see that it points to the file named <em>gunicornStart</em>. Let's inspect that file, run <code>cat /home/user/myWebsite/restartServices/gunicornStart </code>. We see that every time this script is run, it kills the current process and starts a new one from the virtual environment.  It only listens on the localhost and does keep a log, but there is nothing else to it, not even a configuration file. Let's see if we can find the config file. Run <code>find /home/user/myWebsite/venv/ -iname "*gunicorn*"</code> </p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 14-23-21.png" alt ="" width="750" height="450">
+
+</p>We see that the configuration file doesn't exist. Gunicorn is entirely run from the 6-line code in the <em>gunicornStart</em>  script. There is no other management for Gunicorn.</p>
+
+</p><b>Note:</b> Make sure the Gunicorn version is latest. To better follow the principle of least privilege, run gunicorn from a service account rather than root. Create a configuration file for better management of the server.</p>
+
+<h2>Flask</h2>
+
+<b>Version and User</b>
+
+</p>Let's run <code>flask --version</code> to see the version, and <code>ps | grep flask</code> to see what user it is running as.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 14-43-16.png" alt ="" width="750" height="450">
+
+</p>We see the version returned the three components of Flask: Python 3.14.5 , Flask 3.1.3,  and Werkzeug 3.1.8. Also, we didn't find a current process named flask because flask is running from Gunicorn, not by itself. And since Gunicorn is running as root, flask is also running as root.</p>
+
+<b>Debug Mode</b>
+
+</p>Flask has something called debug mode, which gives you an interactive debugger which can be very valuable to attackers. Let's make sure it is turned off. There is only one python code which uses flask on my server, so let's inspect that.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 14-54-56.png" alt ="" width="750" height="450">
+
+</p>The very last line says 'debug=false'. Which is expected and makes the app more secure.</p>
+
+<b>Routes</b>
+</p>While we're at it, let's inspect routes. I see the following:</p>
+<ul>
+<li> @app.route("/Images/<path:filename>")</li>
+<li> @app.route("/")
+</li>
+<li>@app.route("/aboutServer.html")
+ </li>
+<li>@app.route("/index.html") </li>
+<li> @app.route("/.well-known/<path:filename>")</li>
+<li>@app.route("/Projects/<page>") </li>
+<li>@app.route("/SupportingDocuments/<path:filename>")
+</li>
+<li>@app.route("/Scripts/<path:filename>")
+</li>
+<li>@app.route("/admin/<page>")</li>
+
+<li>@app.route("/run", methods=["POST"])</li>
+<li>@app.route("/writeSomething", methods=["POST"])
+</li>
+</ul>
+</p>All of these are necessary for the normal operation of the website. I don't see anything unnecessary exposed.</p>
+</p>Also, the user input for "/run", and "/writeSomething" is  handled as a single string. For example, if an attacker does <code>"GET /download?file=../../some_other_file"</code>, the input isn't parsed at all and it is forwarded as a single string, which will just be rejected by my code.</p>
+
+<b>Admin Page</b>
+
+</p>I see there is an admin page which exposes things like the battery status, capacity, and uptime. Let's see if this page is secured. In this setup, I was able to find the password protection using Basic Auth on the Apache config file. I think this is better than handling it from Flask because Apache challenging the login as soon as it is more secure than it blindly forwarding the traffic to Gunicorn, then Flask and challenged here.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 15-12-32.png" alt ="" width="750" height="450">
+</p>
+<b>Futher Overview</b></p>
+</p>It seems that flask is currently only doing two things. Providing routes, and forwarding the user input to an executable. The routes are minimal for the operation of the website and user input is handled as a single string.</p>
+
+</p><b>Note:</b> Make sure the version is latest. Dig a little deeper and make sure user input cannot cause unexpected behavior.</p>
+
+
+<h2>Hardening</h2>
+
+<h2>Files and Permissions. Assessment and Hardening</h2>
+</p>We came from the internet all the way down to my files. Now I am going to assess the files and harden them. Also, this may not follow a specific structure and we may have to jump around because there may be hardening prerequisites.</p>
+
+</p>Let's jump right in and take a look at the long listing of all the files in the myWebsite folder.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 18-45-03.png" alt ="" width="750" height="450">
+
+</p>We see that for all the contents of this file (excluding the .. entry, which refers to the parent directory), the owner is 'user' and the group is also 'user'. 
+First off, let's start by changing the username 'user'. To do this, I have to SSH in as another user. I logged in as BobbyV and ran <code>sudo usermod -l Gucci user</code> to change the username, and <code>sudo groupmod -n Gucci user</code> to change the group name . Then I ran <code>  cat /etc/group | grep Gucci</code> and confirmed that the username has now been converted to Gucci.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 19-08-16.png" alt ="" width="750" height="450">
+
+</p>Let's log back in as Gucci and run long listing on the myWebsite directory again. </p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 19-11-17.png" alt ="" width="750" height="450">
+
+</p>We see that the owner and group have both been changed to Gucci. We could also rename the directory to Gucci, but that would mean going through all my files and replacing every hardcoded home/user path with home/Gucci. I'll save this for later. A better approach would've been to change the username right after the server was created.</p>
+
+</p>Now the way I want to handle files and permissions is that Gucci can be the owner and have all the permissions. Everything that has to access these files will be put in a group named 'webManagers' and all the files' owning group will be changed to 'webManagers', and appropriate permissions will be given according to the principle of least privilege. Everybody else gets absolutely no permissions at all. Mwahahahaha... sorry. </p>
+
+</p>Let's create the group. Run <code>addgroup webManagers</code> to add the group and <code>cat /etc/group | grep webManagers</code> to check the group have been created. Now let's add Gucci, apache, and gunicorn to the group, change owning group for the files, restart services and see if the website still runs. </p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 19-24-45.png" alt ="" width="750" height="450">
+
+</p>But wait! there is no user called 'gunicorn'. It is running as root! Let's fix that.</p>
+
+</p>First, let's start by making a service account and a group called gunicorn. Run <code> adduser -S -D -H -G gunicorn gunicorn</code>. This creates a system user named gunicorn, without a password, without a home directory, and in a  group named gunicorn. </p>
+
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 19-36-09.png" alt ="" width="750" height="450">
+
+</p>Next, let's make our gunicorn service run as the user we just created. In the gunicorn script, I specified  <code>--user gunicorn</code> after the listening socket part(see image below). Then I saved the file, restarted gunicorn and ran <code>ps </code>| <code>grep gunicorn</code>. I can see that Gunicorn is now running as the user 'gunicorn'. I also opened my website on a browser and confirmed it was still working because curl is unreliable for me because of my proxy.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 19-50-47.png" alt ="" width="750" height="450">
+
+
+</p>Next, let's add 'gunicorn' to the group 'webManagers'.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 19-55-38.png" alt ="" width="750" height="450">
+
+</p>This should be enough to run the website. Now, let's go back and change the owning group of the myWebsite directory to 'webManagers'. Run <code> chgrp -R webManagers myWebsite/</code> to recursively change the owner of everything in the directory.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 19-58-15.png" alt ="" width="750" height="450">
+
+</p>Let's restart gunicorn and apache to see the website still works.</p>
+
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 20-08-42.png" alt ="" width="750" height="450">
+
+</p>Okay it still works. </p>
+
+</p>Next, let's remove all permissions for others and see if still works.</p>
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 20-15-57.png" alt ="" width="750" height="450">
+
+
+</p>Hmm.. we finally broke it. Took it long enough. It means that there is a service which needs to access the files here but it is not in the 'webManagers' group. This response came from Apache, so Apache is working. Maybe gunicorn is experiencing problems. Let's take a look at Gunicorn log.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 20-36-22.png" alt ="" width="750" height="450">
+
+</p>It says module named 'myPyScript' not found error. This is unusual.. I didn't change any file locations! Maybe something wants execute permissions to enter a directory. I was messing with the permissions and found that the  website loads when I add read and execute permissions to others on myWebsite directory. </p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 20-40-24.png" alt ="" width="750" height="450">
+
+</p>Ok let's run the command inside the restart script directly on the CLI to see if it gives the same error.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 21-50-21.png" alt ="" width="750" height="450">
+
+</p>Yep! this tells me when I run the command in the script, Gunicorn can't find the python script even though the file hasn't moved anywhere. This is also not a permissions issue because I am getting NotFoundError rather than permissions error. The command I ran starts Gunicorn as root, then drops privileges to user 'gunicorn'. Let's start Gunicorn straight by the user 'gunicorn'. I ran <code>sudo -u gunicorn /home/user/myWebsite/venv/bin/gunicorn --bind 127.0.0.1:8000 myPyScript:app</code>. </p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 21-57-28.png" alt ="" width="750" height="450">
+
+</p>Okay the website is back up. This confirms that the problem occurred when the process started as root and dropped privileges. What problem exactly? I don't know but hey, it works  now. Let's modify the restart script now and restart Gunicorn to see if it holds up.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 22-04-41.png" alt ="" width="750" height="450">
+
+</p>Seems that I can't specify user inside the script. Let's remove <em>-u gunicorn</em> and specify the user to OpenRC so the script is automatically ran as gunicorn.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 22-07-58.png" alt ="" width="750" height="450">
+
+</p>After specifying the user to OpenRC and making a few tweaks on the restart script, it finally ran!</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 22-15-15.png" alt ="" width="750" height="450">
+
+
+</p>Haha talk about least privilege, now, the only users that can access my files are the user account Gucci, and service accounts Apache and Gunicorn.</p>
+
+</p>Now I will proceed to make access even tighter by recursively removing write permissions for all the directories from the group.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-06 00-03-30.png" alt ="" width="750" height="450">
+
+</p>We see that the website still works. Off camera, I added write permissions to the files in the Logs directory.</p>
+
+</p>Next, remove execute permissions from all the files in the templates, static, and Images directory.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-05 23-49-55.png" alt ="" width="750" height="450">
+
+</p>I believe these are the minimum permissions required for my website to function normally.</p>
+
+<b>Files and Services - Conclusion:</b>
+<ul>
+    <li>Owner retains full control.</li>
+    <li>Service accounts receive only the minimum permissions required to operate.</li>
+    <li>No permissions are granted to others.</li>
+</ul>
+
+<h2>Flask</h2>
+
+</p>Let's make sure Flask is the latest version available. I imagined checking for updates would be as easy as opening play store on an android, searching for the app and if you see an update icon next to the app, the update is available if not then there's no update. But here in Linux,  you have to match the command to the package, and the distribution. SOMEBODY FIX THIS PLEASE. Let's run <code>sudo apk update</code> to update the repository, <code>pip index versions Flask</code> and <code>pip index versions Werkzeug</code> to see the latest versions of Flask and Werkzeug. Now 'pip index' won't work for Python, you have to do <code>apk policy python3</code> to check for the latest version of python3. </p>
+
+
+</p>Flask, Python, and Werkzeug appear to be the latest version available. I did notice pip complaining that it had a new release available, so I installed it using <code>python3 -m pip install --upgrade pip</code>. </p>
+
+</p>Next, I added input validation to my two input boxes so that numbers to words converter rejects anything over 20 characters, and  the user input logger rejects anything over 100 characters. </p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-06 11-59-20.png" alt ="" width="750" height="450">
+
+</p>But I noticed that someone could just write a billion things and cause unexpected behavior such as crash my server, so I modified my C code to exit every time without writing if the log size exceeds 100MB.</p>
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-06 12-13-13.png" alt ="" width="750" height="450">
+
+</p>
+<b>Flask-Conclusion</b></p>
+<ul>
+<li>The running Flask version is the latest release.</li>
+<li>Input validation was added on input boxes, and user input log was paused once the log file exceeds 100MB. For the current implementation, halting the logs and requiring manual inspection seemed better than rotating logs because log file exceeding 100 MB is a sign of malicious activity. Behind the scenes, the issue will be reported in the admin page.</li>
+</ul>
+<h2>Gunicorn</h2>
+</p>First, let's make sure it is the latest version.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-06 12-25-23.png" alt ="" width="750" height="450">
+
+</p>It is the latest version and now it is running from gunicorn service account. The recommendation to create a config file for gunicorn from the Assessment section was deemed non-essential right now.</p>
+
+<b>Gunicorn - Conclusion</b>
+<ul>
+<li>The running Gunicorn version is the latest release.</li>
+<li>Gunicorn's privileges were dropped from root to a service account.</li>
+<li>Config file was not created. The startup script suffices current requirements.</li>
+</ul>
+
+
+<h2>Time Out</h2>
+<p>I cannot see where the prompt stops and my command starts. The book I read called 'Linux Basics for Hackers' did have a chapter on environment variables, so I revisited it but I realized it didn't have the instructions to change colors. So like every other rational human being, I went to the internet and found this command <code>PS1='\e[1;36m\u@\h\e[0m:\e[1;33m\w\e[0m\$ '</code>. It said this would turn the prompts into green, I ran it and turns out it did. Hope this won't ruin my server now. I will  put this prompt in my .profile file so the prompt is green from the boot.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-06 15-32-04.png" alt ="" width="750" height="450">
+
+
+</p>I rebooted the server and looks like the color did hold up. This will make mine and your life much easier moving forward.</p>
+
+<h2>Apache</h2>
+</p>First, let's see if the installed version of Apache is latest. Run <code>sudo apk update</code> to update your repository and <code>apk policy apache2</code> to check for the latest version. Comparing it against the currently installed version, it looks like the currently installed version is the latest one.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-07 12-18-21.png" alt ="" width="750" height="450">
+
+<br>
+<b>Modules</b>
+
+</p>Next, the modules. The plan was to inspect all the modules, to see if I'm using them and I expected I could do something like <code>using module these?</code> and the computer could tell me yes or no. But I was far from reality. First, there isn't a simple or automatic way to determine with certainty whether every loaded module is actually needed and second, the methods I employed were very unreliable. Mainly I used grep on the config files to see if the module is just loaded or also used . Turns out, some modules even tho not explicitly used, are dependencies for other modules. Still, I figured if I spend like 10 mins for every module, I could be reasonably confident but I only live once and I'm not doing that for all the 47 loaded modules (I counted).  Rather, I'm taking an approach where I check if the modules were loaded from the right place, if the Apache package passes Alpine's package integrity verification, and and whether any Apache package files or configuration files have been modified since installation.</p>
+
+</p>I guess it's about time I learned about balancing resource with security. Time is a resource I have, and I can't waste it trying to strip down Apache to only the necessary modules when there are other obvious threats to be dealt with. I will only verify that the modules are legit and move on.</p>
+
+</p>First, let's check if the downloaded Apache package has been corrupted or modified. To get the package name, run <code>apk fetch apache2</code> and run <code>apk verify returnedName</code> to compare it's cryptographic key to the one in the Alpine Package Keeper.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-07 12-58-38.png" alt ="" width="750" height="450">
+
+
+</p>We can see that my Apache, and the additional SSL package both maintained integrity since they were installed. Fetch command downloads the packages to your cd so make sure you remove them.</p>
+
+</p>From <code>apk --help</code>, I retrieved this command: audit Audit system for changes. Let's do that and grep apache2 to see what files have been changed on the system. Run <code>apk audit | grep apache2</code>.</p> 
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-07 13-10-18.png" alt ="" width="750" height="450">
+
+
+</p>We can see that files that have been added are:
+<ul>
+<li>server.pem (from my digital certificate)</li>
+<li>server.key (from my digital certificate)</li>
+<li> .httpasswd (from the Basic Auth password on my admin page)</li>
+<li> mywebsite.conf (config file for my website)</li>
+<li>mywebsite-ssl.conf (ssl config for my website for HTTPS connections)</li>
+<li>ssl.conf.disabled (I renamed ssl.conf to ssl.conf.disabled because I have another ssl config file)</li>
+
+</ul>
+Files that have been updated are:
+<ul>
+<li>default.conf</li>
+<li>ssl.conf</li>
+<li>httpd.conf</li>
+</ul>
+</p>
+</p>
+I opened these files and confirmed that all the changes were made by me. <code>apk --help</code> did give me another command that looked useful: <code>apk verify</code> but it is either broken or I don't know how to use it. But I am going to conclude that for all the modules that are loaded, and the files in apache2 directory, no unexpected modifications were identified. I couldn't strip down apache to only necessary modules but we did confirm that they were not subject to any tampering or added from unknown source so we'll just have to live with extra Apache modules for now.</p>
+
+<b>HTTP to HTTPS redirection</b>
+
+</p>Currently, there are two files that manage HTTP and HTTPS in my server: mywebsite.conf, and mywebsite-ssl.conf. mywebsite-ssl.conf manages HTTPS traffic so we can let that be, and let's focus on the file that manages HTTP traffic: mywebsite.conf. </p> 
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-07 13-35-17.png" alt ="" width="750" height="450">
+
+
+</p>You can see in the image above, I removed proxy commands from the file, and simply added permanent redirection. I tested with <code>httpd -t</code>, and I thought there was a problem but it was only because I wasn't running the command as sudo. The syntax returned OK.</p>
+
+</p>Let's check it by restarting Apache and doing curl on our public IP address because curl on the domain name is intercepted by Cloudflare. </p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-07 13-39-46.png" alt ="" width="750" height="450">
+
+
+</p>Now we can see that HTTP connections made directly to my server are rejected, and the response shows a 301 Moved Permanently redirect to my HTTPS address. </p>
+
+<b>Certificate Renewal</b>
+
+</p>We saw in the assessment section that certbot renewal fails because it tries to bind to port 80 but Apache is already using port 80. Let's stop apache for a second and see if the renewal simulation succeeds.</p>
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-07 14-05-34.png" alt ="" width="750" height="450">
+
+
+</p>Exactly like I suspected, renewal succeeds if port 80 is free. But this wasn't the only problem. There isn't a renewal script either. So I am going to write a script which, when renewal is necessary, stops apache, gets a new certificate, and starts apache back up.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-07 14-22-39.png" alt ="" width="750" height="450">
+
+
+</p>Here it is. The script checks if the certificate is valid for another 2592000 seconds (30 days). If it is, then the script does nothing but when it detects that certificate is not valid for next 30 days, it stops apache, (exits if fails), renews the certificate, and when the script exits, Apache starts automatically. </p>
+
+</p>To test the script, I modified it to renew the certificate if it is expiring in the next 9592000 seconds (111 days) to trigger the renewal logic, and everything went as I had thought.</p>
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-07 14-29-42.png" alt ="" width="750" height="450">
+
+
+</p>Even though the certificate didn't renew(certbot only lets renewal if the certificate is expiring in 30 days), I can see the workflow. The script successfully stopped Apache, tried to renew the certificate but  got a 'Certificate not yet due for renewal'  response, and started Apache back up.</p>
+<br>Now with a reasonable assurance that the certificate will renew when necessary, let's fix the validation check window, add this script to cron.
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-07 14-39-55.png" alt ="" width="750" height="450">
+
+
+</p>I added it to cron to run at midnight every day. I also added a logger in case renewal ever fails and I need to perform a manual intervention.</p>
+
+</p>Now for the big question in everyone's mind. Since my approach stops Apache, which means my server will be down for about 10-15 seconds, what if someone tries to access my website right on the 60th day of my certificate issuance at 00:00 midnight? Well let me answer your question with another question, <a href="https://tenor.com/view/whatifanything-what-if-anything-trump-what-if-a-bomb-whatifabomb-gif-15203407078755167009">What if anything? What if a bomb drops on your head right now?</a> Don't judge me, the president said it. But really tho, I can afford a 10 second downtime every 60 days and there maybe a better way to do it but the moment I saw renewal fail because port 80 was busy, the only thought in my mind was "let's just free port 80 then", so here we are.</p>
+
+</p>
+<b>Apache-conclusion</b>
+<ul>
+<li>Running Apache is the latest version.</li>
+<li>Apache's packages' digital signatures were verified.</li>
+<li>Files that were changed or added since installation were inspected, and no indicators of compromise or malicious activity were identified. No files/modules were removed because of the risk of dependency disruption .</li>
+<li>HTTP to HTTPS redirection was added.</li>
+<li>Certificate renewal logic was fixed and a cron  job was added to automate renewal.</li>
+</ul>
+</p>
+<h2> Users/privileges</h2>
+<b>Users</b>
+</p>In the assessment phase, I noticed a lot of unnecessary user accounts. Let's remove the ones we do not need. You have to be very careful to not remove a legitimate user as it may disrupt normal operations of the server. Run <code>deluser userName</code> to delete a user.</p>
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 00-27-33.png" alt ="" width="750" height="450">
+
+
+</p>After careful evaluation, I removed these users:
+<ul>
+<li>lp. My server doesn't need a printer service.</li>
+<li>mail. I do not need mail service(yet?).</li>
+<li>news. Pretty self explanatory, I don't watch news on  my server.</li>
+<li>ftp. FTP is not used it on my server.</li>
+<li>uucp. Another protocol I don't need.</li>
+<li>games. I don't play games on my server.</li>
+<li>guest. Always a good idea to not have a guest user around.</li>
+<li>avahi. I just know I don't need this.</li>
+<li>pulse. I don't need audio service on my server.</li>
+</ul>
+Let's restart the server to see if anything breaks.</p>
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 00-29-18.png" alt ="" width="750" height="450">
+
+
+</p>Okay the server is fine and website is also up and running. We can see that the number of user accounts have decreased, and only root, Gucci, and BobbyV can get a shell and other accounts have appropriate configurations.</p>
+
+<b>Groups</b>
+
+</p>Let's move on to groups now. I also noticed a lot of unnecessary groups during the assessment. Run <code>delgroup groupName</code> to remove a group. </p>
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 00-44-28.png" alt ="" width="750" height="450">
+
+
+
+</p>I removed these groups:
+
+<ul>
+<li>floppy, cdrom, and tape: Ancient tech that my server don't have the hardware for</li>
+<li>audio, pipewire, pulse-access: No audio services needed for my server.</li>
+<li>kvm. Virtual machine that I don't need.</li>
+<li>abuild. I am not building packages yet.</li>
+<li>plugdev. I have no intention of using removable devices on the server.</li>
+<li>bullgrp. I created this once and forgot to delete it.</li>
+</ul>
+</p>
+
+</p>Again, let's reboot and see if the everything functions normally.</p>
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 00-54-00.png" alt ="" width="750" height="450">
+
+
+</p>We can see once more time the server and my website are functioning normally.</p>
+
+<b> Login methods</b>
+
+</p>We saw during the assessment that none of the users were using SSH keys for login. Let's add the SSH keys for Gucci and BobbyV. </p>
+
+</p>For Gucci, let's create a key, and manually copy it into the correct directory and again manually add it to the authorized_keys file. Run <code>ssh-keygen -t rsa -b 4096</code> to generate a RSA key pair. Then do <code>scp</code> to copy the public key to the intended user's .ssh file in their home directory.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 01-17-43.png" alt ="" width="750" height="450">
+
+
+</p>Let's use cat to append the key to the authorized_keys file.</p>
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 01-17-52.png" alt ="" width="750" height="450">
+
+
+
+</p>Now let's try to login using the SSH key.</p>
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 01-20-00.png" alt ="" width="750" height="450">
+
+
+
+</p>It works! (ignore my first attempt to login where I put in the wrong IP address). 
+<br>
+Now let's create a key for BobbyV also but let's do it the SSH way now. After generating the key, run <code>ssh-copy-id -i ~/.ssh/key_Name.pub user@IP_Address</code>. This will automatically copy the key to the right directory, and adds it to the registered_keys file.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 01-32-01.png" alt ="" width="750" height="450">
+
+
+
+</p>We can also login as BobbyV using the RSA key now.</p>
+
+</p>I am not removing password login for any of the accounts for now. It is a practical desicion because the machine with the private key is not so reliable, so I will make sure to use strong and secure passwords. Next, let's disable root login via SSH. Go to the file <em>/etc/ssh/sshd_config</em> and configure PermitRootLogin to no.</p>
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 02-13-30.png" alt ="" width="750" height="450">
+
+
+
+</p>I also enabled StrictMode, shortened LoginGraceTime, and decreased MaxAuthTries and MaxSessions.</p>
+
+</p>Let's try to SSH as root now.</p>
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 02-16-55.png" alt ="" width="750" height="450">
+
+
+</p>You can see that I cannot login as root, and the connection gets terminated on the third login attempt.</p>
+</p>
+<b>Users, Groups, Login - Conclusion</b>
+<ul>
+<li>Unnecessary user accounts were removed, and it was made sure that the remaining user accounts were appropriately configured.</li>
+<li>Unnecessary groups were removed.</li>
+<li>RSA keys were added for Gucci and BobbyV.</li>
+<li>Root login was disabled.</li>
+<li>Login parameters were made stricter.</li>
+</ul>
+</p>
+<h2>Listening Ports and Firewall</h2>
+
+</p>The concern with the listening ports was that sshd and Apache were accepting connections from any network interface. After a few practical considerations, I decided to leave SSH alone because my server's on-screen keyboard is unreliable and, in case of some network catastrophe, I don't want to lose access to my server. I will compensate for this by blocking inbound port 22 traffic at the router, so the server itself can still accept SSH connections for local and recovery access but SSH connections from the internet will be dropped at the router.</p>
+
+</p>Let's move on to configure the firewall to only accept traffic from Cloudflare. I found Cloudflare IP ranges here: https://www.cloudflare.com/ips/</p>
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 02-37-01.png" alt ="" width="750" height="450">
+
+
+
+</p>With this range, here is how I modified my firewall:</p>
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 03-39-00.png" alt ="" width="750" height="450">
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 03-39-05.png" alt ="" width="750" height="450">
+
+
+
+
+</p>I made two sets with IPv6 and IPv4 addresses from Cloudflare's IP range, and configured port 80 and 443 to only accept traffic from these addresses. Let's try curl on my public IP from my laptop to see if the connection is accepted or dropped.</p>
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 03-41-02.png" alt ="" width="750" height="450">
+
+
+
+</p>We can see that my HTTPS connection request is no longer accepted. From now on, any HTTP/HTTPS request from IP address outside of Cloudflare's IP range for instance, an attacker trying to connect directly to my server, will be dropped.</p>
+
+<b>Listening Ports and Firewall - Conclusion</b>
+<ul>
+<li>Services using listening sockets were deemed safe to continue to operate.</li>
+<li>SSH configuration was unchanged.</li>
+<li>Firewall was configured to accept HTTP/HTTPS traffic only from Cloudflare's IP range.</li>
+</ul>
+<h2>Server</h2>
+<b>Operating System</b>
+
+</p>My server is running postmarketOS, so I don't want to blindly upgrade anything on my own in case incompatibilities occur. Let's check for if there is any updates available for postmarketOS. Run <code>sudo apk update</code> to update your repository, and <code>sudo apk upgrade --simulate | grep postmarketOS</code> to see if there is any postmarketOS files on the upgrade simulation.</p>
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 12-54-04.png" alt ="" width="750" height="450">
+
+
+</p>We see that there is an update available. Now, let's refer to the postmarketOS for installation instructions. I found the instructions here:https://wiki.postmarketos.org/wiki/Upgrade_to_a_newer_postmarketOS_release</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 12-57-55.png" alt ="" width="750" height="450">
+
+
+</p>It is a really quick 3 step process  but before we do it tho, let's see if our postmarketOS version is 21.12 and later or not. Run <code>apk info -W /os-release</code> to see who owns the current os-release, and run <code>apk info postmarketos-release</code> to see what postmarketOS packages are known to apk.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 13-02-29.png" alt ="" width="750" height="450">
+
+
+</p>We see that I am running <em>postmarketos-release-65-r0</em>, and an upgrade is available to <em>postmarketos-release-66-r0</em>. The three step process given by postmarketOS upgrades all the available files. I was trying to see if there is any way to just upgrade postmarketOS files but I was unable to find it. Maybe there are dependencies which requires you to update all the files or whatever. </p>
+
+</p>Let's run them. <code>sudo apk add postmarketos-release-upgrade</code>,  <code>apk update</code>, <code>sudo apk upgrade --available</code>.</p>
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 13-14-00.png" alt ="" width="750" height="450">
+
+
+</p>I see the update is removing some services. I am fairly certain I don't depend on them so I am going to hit accept. After upgrade completes, let's reboot and see if anything breaks.</p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 13-19-28.png" alt ="" width="750" height="450">
+
+
+</p>The server is okay and the website is also running. Now, the os-release file is owned by the upgraded postmarketos-release-66-r0. I am aware that one day amidst all this, I may break something but oh well, I am pretty sure I can build it back up.</p>
+
+<b>OpenRC services</b>
+
+</p>There are about 80 OpenRC services in the server. I cannot manually inspect all of them, so I am just going to verify that they are owned by OpenRC. Run <code>for f in /etc/init.d/*; do apk info -W "$f"; done</code> to see a rundown of all the services or to inspect an individual service, run <code>for f in /etc/init.d/*; do apk info -W "$f"; done |  grep fileName</code>. I see that only service which wasn't owned by OpenRC was gunicorn. However, I was the one who created that service, and after some inspection, everything seemed to be in order. </p>
+
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 13-35-04.png" alt ="" width="750" height="450">
+
+
+</p>The OpenRC services which are just sitting on the init.d directory aren't a threat by themselves. They only add to the attack surface if they are started on default runlevel or if they are listening on a socket. Let's inspect just that.</p>
+<img src ="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-08 13-45-29.png" alt ="" width="750" height="450">
+
+
+
+</p>I reviewed the services enabled in the active runlevels and determined that each currently enabled service has an identified operational purpose. There are server critical services, hardware services, services necessary for my website, and postmarketOS specific services. Also, I already concluded that all the services using the listening services were necessary for normal operation and were deemed safe.</p>
+
+<b>Server-Conclusion</b>
+<ul>
+<li>The Operating system along all of the services with upgrade available were upgraded.</li>
+<li>Ownership of all the OpenRC files were verified.</li>
+<li>Services automatically started by OpenRC were deemed safe and minimal for server operation</li>
+<li>Services listening on sockets were deemed safe and necessary</li>
+</ul>
+
+
+
+
+<h2>Before we Close the project,</h2>
+
+<h3>Things I have missed</h3>
+<ul>
+    <li>To check the integrity of Gunicorn and Flask</li>
+
+    <p>This was just a basic sanity check. The commands I ran were: <code>pip show flask gunicorn werkzeug</code>, <code>pip check</code>, <code>apk info python3</code>, and <code>apk audit | grep python</code>. These checks provided a quick overview of the installed versions, dependency consistency, Python package installation, and any reported changes to Python-related files.</p>
+
+    <img src="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-09 03-28-50.png" alt="" width="750" height="450">
+
+
+
+</ul>
+
+<h3>Things to look out for.</h3>
+<ul>
+    <li>After I configured the firewall, I am not sure if the certificate renewal process will work correctly. The renewal sequence should still be proxied through Cloudflare and it should be accepted by the server, and I did run tests to verify it but since the certificate is not yet due for renwal, I couldn't get a definitive conclusion. The renewal log should be monitored to ensure the process is working as expected.</li>
+</ul>
+
+<h3>Things to improve</h3>
+<ul>
+    <li>Stopping Apache to free port 80 for certificate renewal is not a good approach. A better approach would be to configure Certbot to use an ACME challenge method that does not require Apache to stop, such as the DNS-01 challenge</li>
+    <li>Cloudflare IP range is hard coded but if Cloudflare makes a change to the range, it will not be reflected on my server. A better approach would be to use the provided API.</li>
+    <li>Disabling the user input log after it reaches a certain size isn't a good approach. The logs should be rotated so a denial of service situation doesn't occur for the logs.</li>
+    <li>Ed25519 keys are recommended over RSA keys for modern OpenSSH. Replacement should be considered.</li>
+
+</ul>
+
+
+<h3>Quick Summary of Major Findings:</h3>
+
+<table>
+    <thead>
+        <tr>
+            <th>Finding</th>
+            <th>Severity</th>
+            <th>Remediation</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Gunicorn running as root</td>
+            <td>High</td>
+            <td>Gunicorn's privileges were dropped to a service account.</td>
+        </tr>
+        <tr>
+            <td>Certificate renewal failure</td>
+            <td>High</td>
+            <td>Automated script was added for certificate renewal.</td>
+        </tr>
+        <tr>
+            <td>SSH root login</td>
+            <td>High</td>
+            <td>SSH root login was disabled.</td>
+        </tr>
+         <tr>
+            <td>Insufficient input validation </td>
+            <td>Medium</td>
+            <td>Basic input validation was implemented to reject unusually long inputs.</td>
+        </tr>
+        <tr>
+            <td>Unbounded user input logs</td>
+            <td>Medium</td>
+            <td>Writing to the log file was disabled once the file reached 100MB.</td>
+        </tr>
+        <tr>
+            <td>Direct HTTP/HTTPS access bypassing Cloudflare</td>
+            <td>Medium</td>
+            <td>The firewall was configured to access HTTP/HTTPS traffic only from Cloudflare's IP ranges.</td>
+        </tr>
+        <tr>
+            <td>Direct HTTP access</td>
+            <td>Medium</td>
+            <td>HTTP to HTTPS redirection was implemented on the server.</td>
+        </tr>
+        <tr>
+            <td>Outdated OS</td>
+            <td>Medium</td>
+            <td>OS was updated to the latest release.</td>
+        </tr>
+        <tr>
+            <td>Unnecessary users and groups</td>
+            <td>Low</td>
+            <td>Unnecessary users and groups were removed.</td>
+        </tr>
+        <tr>
+            <td>Excessive File permissions</td>
+            <td>Low</td>
+            <td>Files permissions were configured according to the principle of least privilege.</td>
+        </tr>
+        
+    </tbody>
+</table>
+
+<h3>External Assessment:</h3>
+
+<p>
+The external assessment can be found here: <a href="../SupportingDocuments/mysweetserverInitialExternalAssessment.html" >Initial External Assessment of an Alpine Linux Server.</a>
+
+</p>
+
+<h3>Updates:</h3>
+<p>I tend to write my papers in the blockchain way (a method I just pulled out of my donkey), where if I make an error, I don't edit the error to correct it, but I add a new update block of information. Any updates on this paper can be found here: </p>
+<ul>
+<li>Update 1: SSH configuration
+
+<p>As I began venturing outside my house, need arose for me to access my server from the internet. The one reason I dropped SSH connections in my router is because I feared that people could figure out my public IP address, and brute force my password. However unlikely it may be for anyone to succeed because of the complexity of my password (yea I'm like that), I didn't want them to even try (cause what if?). So I guess I reached a progressive compromise where I decided to forward SSH connections to my server from my router, but disable password authentication and enable public key authenticaion. But what about my recovery procedure then when I lose my key? First, I went to my router and retrieved IPv4 address distribution. It read "Subnet Mask: 255.255.255.0, Dynamic IP Range: 192.168.1.2 - 192.168.1.254". Second, I went to postmarketOS website and retreived: "Out of the box, a postmarketOS device uses a static address of 172.16.42.1/24 on any USB network interface and runs the unudhcpd DHCP server, offering one address, 172.16.42.2/24, to the USB network.". These two addressess ranges will be the recovery access to my server. I figured <code>Match Address</code> can be used to create exceptions in the global SSH rule, so I added my two recovery IP address to the exception and turned password authentication on.</p>
+
+<img src="../../Images/InitialHardeningAlpineServer/Screenshot From 2026-08-11 12-47-17.png" alt="" width="750" height="450">
+
+<p>This is what my final configuration looks like. Basically, every SSH connection now requires an authorized cryptographic key except for when connections come from 172.16.42.0/24 or 192.168.1.0/24 where password can be used for recovery purposes. But what if someone steals my server and brute-forces the password offline using USB, or some malicious insider inside my house does the same? I have enabled port forwarding for these kind of questions to the president. But what I can tell you is that my current setup doesn't fully protect against server theft (very different threat model not discussed below) or an attacker who gains physical access to my home network. With the time and frequency login controls in my server, and the complexity of my password, I suspect they will successfully brute force my password sometime after the sun dies.  </p>
+</li>
+
+
+</ul>
+</body>
+</html>

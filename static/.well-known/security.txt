@@ -1,0 +1,9 @@
+Canonical: https://sushantadk.com/.well-known/security.txt
+Contact: mailto:sushantadk33@gmail.com
+Expires: 2027-02-01T00:00:00Z
+Preferred-Languages: en
+
+
+
+
+****The key is to use the tools, not depend on them.***

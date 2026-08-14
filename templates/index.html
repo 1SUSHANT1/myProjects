@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sushant Adk</title>
+    <link rel="icon" href="../static/Images/favicon.ico">
+</head>
+<body>
+
+<header> 
+        <h1> Building, Securing, and Understanding Computer Systems</h1>
+  
+</header>
+
+</p>
+
+<a href ="aboutServer.html">About</a>
+
+<h1> Projects</h1>
+<a href="Projects/repurposingMyOldPhone.html">Repurposing My Old Phone into an ARM Linux Web Server</a>
+<br><br>
+<a href="Projects/hardeningTheServer.html">Security Hardening and Assessment of a Self-Hosted ARM Alpine Linux Web Server</a>
+<br><br>
+<a href="Projects/numbersToWords.html">Numbers to Words Converter </a>
+<br><br>
+<a href="Projects/sunnyland.html">Sunnyland</a>
+<br><br>
+<a href="Projects/homeLab.html">Home Lab</a>
+<br><br>
+<a href = "Projects/embeddedLinuxPortingforAndroidHardware.html">Embedded Linux Porting for Android Hardware</a>
+<br><br>
+
+
+<h1> Supporting Documents</h1>
+<a href="SupportingDocuments/myWebsite.html"> Initial Configuration of my Website</a>
+<br><br>
+<a href="SupportingDocuments/domainRegistrationAndDNSConfiguration.html">Domain Registration, DNS and Security Configuration</a>
+<br><br>
+<a href="SupportingDocuments/buildingAServer.html">Building a server</a>
+<br><br>
+<a href="SupportingDocuments/mysweetserverInitialExternalAssessment.html" >Initial External Assessment of an Alpine Linux Server.</a>
+<br><br>
+<a href="SupportingDocuments/fixingUSBChargingByEditingTheDeviceTree.html">Fixing USB Charging By Modifying Device Tree</a>
+<br><br>
+
+
+
+<h2>Admin Page</h2>
+    <a href="admin/dashboard.html">Dashboard</a>
+<br><br>
+<p>Let me know something: 
+    <br>
+<input id="writeSomething">
+<button onclick="registerTheInput()">Submit</button>
+
+    
+
+
+
+<script>
+
+function registerTheInput(){
+
+    let input = document.getElementById("writeSomething").value;
+
+    fetch("/writeSomething",{
+            method:"POST",
+            headers:{
+                "Content-Type":"application/json"
+            },
+            body: JSON.stringify({
+                writeSomething: input
+            })
+            
+
+    })
+    document.getElementById("writeSomething").value="";
+
+}
+
+
+const box = document.getElementById("writeSomething");
+
+box.addEventListener("keydown", function(event) {
+    if (event.key === "Enter") {
+        registerTheInput();
+    }
+});
+
+
+
+</script>
+
+
+
+
+
+<br><br>
+</p>
+<footer>
+    <p> &copy; 2026 Sushant's Website. All rights reserved.</p>
+</footer>
+
+
+
+</body>
+</html>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Building a Server</title>
+</head>
+<body>
+    <h1>Building a Server</h1>
+
+<h2>Supporting document status: <b>In Progress</b></h2>
+
+
+<h1>About</h1>
+<p>This is a project on building a server. This project assumes that you already have HTML files available for your website, and you have already purchased a domain name. If you need help, please visit <a href="../SupportingDocuments/myWebsite.html">My Website Initial Configuration</a>, and <a href="../SupportingDocuments/domainRegistrationAndDNSConfiguration.html">Domain Registration and DNS configuration.</a></p>
+
+
+<h2>Acknowledgements</h2>
+<p>I have to thank my friend Nyaisa for donating me her broken, prehistoric, obsolete by current standards, can't even boot windows, no charger having, HP Pavillion laptop which, after some repair, will be my subject server in this document, and my standby backup server later.</p>
+
+<img src="../../Images/buildingAServer/1000045218.jpg" alt="Server Setup" width="200" height="400">
+
+<p>I'm not lying. The laptop legit couldn't boot into windows. But I have big hopes for it as a server!</p>
+
+<h2>Objective</h2>
+<p>The objective of this guide is to build a server capable of hosting a website, serving both static and dynamic content.</p>
+
+
+<h2>Real quick setup before we have the linux environment.</h2>
+<p>First, I downloaded Debian 13 image on my laptop, and wrote the <em>.iso</em> file onto my USB drive. </p>
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 00-25-58.png" alt="Server Setup" width="750" height="450">
+
+<p>Then I inserted the USB drive in the HP laptop, and spammed <em>esc</em> button while it was booting to get into the startup menu. Then I chose to boot from my USB drive, completely erased off windows, and installed a minimal Debian environment. Yeah, straight up Debian in Di Bi.</p>
+<img src="../../Images/buildingAServer/1000045219.jpg" alt="Server Setup" width="200" height="400">
+
+<h2>Freshly installed Debian</h2>
+<p> First thing I did was install ssh server with <code>sudo apt install openssh-server</code>. And from now on, we will be SSHing into our server!</p>
+
+<img src="../../Images/buildingAServer/20260813_013020.jpg" alt="Server Setup" width="200" height="400">
+
+
+
+<p>Let's SSH into our server!</p>
+
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 01-33-08.png" alt="Server Setup" width="750" height="450">
+
+
+
+
+<p>Now let's start building our server. Here is the plan: Use Secure Copy (SCP) to transfer website files to our server. Then install NGINX (engine x) and have it listen on the ports 80 and 443. Enable port forwarding from the router to our server, and serve the website from NGINX</p>
+
+
+
+<h2>SCP</h2>
+<p>I used <code>scp</code> to transfer files to our server.</p>
+
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 01-43-51.png" alt="Server Setup" width="750" height="450">
+
+
+<p>These are all static files necessary for the website. There are no scripts or configurations files here. We will write those in a bit.</p>
+
+
+<h2>NGINX Configuration</h2>
+<p>For configuring NGINX, we will get help from the <a href="https://nginx.org/en/docs/">official NGINX documentation.</a></p>
+<p>First, let's install NGINX. The official NGINX documentation has a very complex installation guide, do check it out. If you have a reason to install NGINX directly from their repository, do go ahead but I will skip allat and install it from <em>apt</em>. Run <code>sudo apt-get install nginx</code>.</p>
+
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 01-52-59.png" alt="Server Setup" width="750" height="450">
+
+
+
+<p>Now, let's configure NGINX. Run <code>nano /etc/nginx/nginx.conf</code> to inspect the configuration file. Notice the line <code>include /etc/nginx/conf.d/*.conf;</code>. It means any configuration files in the <em>/etc/nginx/conf.d/</em> directory will be included in the <em>nginx.conf</em> file.</p>
+    
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 02-02-14.png" alt="Server Setup" width="750" height="450">
+    
+    
+    <p>
+    So, instead of making modifications to the main configuration file, we will create a new file in the <em>/etc/nginx/conf.d/</em> directory. Run <code>touch /etc/nginx/conf.d/myWebsite.conf</code> to create a new configuration file.</p>
+
+
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 02-04-18.png" alt="Server Setup" width="750" height="450">
+
+
+
+<p>What now? I don't know how to write a configuration file for NGINX! Ahh.. the official documentaion! Let's check out the <a href ="https://nginx.org/en/docs/beginners_guide.html"> Beginner's Guide</a>. Please make sure you read the entire guide.</p>
+
+<p>Let's begin writing the configuration file. The guide says that the <code>server</code> block should be inside the <code>http</code> block. But since the <code>include /etc/nginx/conf.d/*.conf;</code> line was already inside the <code>http</code> block, we can start writing our configuration from the <code>server</code> block. Let's take a look at the section where the guide was talking about <code>location</code> block and try to adapt it.</p>
+
+
+
+
+
+<p>I adapted the given template almost exactly, just replaced the actual file name, and the path. Now what?</p>
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 02-20-28.png" alt="Server Setup" width="750" height="450">
+
+
+<h2>Domain Name</h2>
+<p>If you have already configured a domain name, you can move along to the next section. If not, please visit: <a href="../SupportingDocuments/domainRegistrationAndDNSConfiguration.html">Domain Registration and DNS configuration.</a></p>
+
+    
+<h2>Port Forwarding from the router</h2>
+
+<p>After pointing the domain name to our server's public IP address, we also have to configure the router to send web traffic to our server. To do this, enter <em>ip route</em> on your terminal. The terminal will return: 'Default via' followed by an IP address, which will look like 192.168.1.1. This is your default gateway. Open up a browser and enter this IP address. This will take you to your router's login page. If you know the password(and if it's default, please change it), you can login but if you don't, you can follow the password recovery instructions. After logging in the router, select advanced settings and look for something along the lines of <em>Port Forwarding, Port Mapping, or Firewall Rules</em>. We are trying to find the section which lets us forward a specific traffic to a IP address. In my router, it is under <em>Port forwarding</em>.
+</p>
+
+<p>
+
+Once you are in the Port Forwarding settings, it'll let you add a rule. For the initial configuration, do Application: NGINX(or whatever server you are running), Original Port: 80, Protocol: TCP, Fwd to Addr: yourServer'sIPAddress(you can obtain it by running <em>ifconfig</em> on your server's terminal), fwd to Port: 80, Schedule: Always. 
+
+</p>
+<img src="../../Images/DNS registration/Screenshot From 2026-07-23 01-32-06.png" alt="Port Forwarding config" width="750" height ="450">
+<p>Notice that we are forwarding port 80 traffic, which is the HTTP traffic, to port 80 on the server. HTTP traffic isn't secure because the traffic isn't encrypted, so the browser will throw warnings when someone visits your website. We will fix that in a bit. Let's just make the server accessible via HTTP for now.</p> 
+    
+    
+    <h2>Back to NGINX Configuration</h2>
+    
+   <p> Assuming you have a valid domain name pointing to your server's public IP address, and the router port forwarding to your server, type in <em>http://yourdomain.com</em> in the browser.</p>
+
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 02-41-22.png" alt="Server Setup" width="750" height="450">
+
+
+<p>Hmm.. it says server down. Ah! we got to start the NGINX server first! Run <code>sudo systemctl start nginx</code> to start the server and <code>ss -tlnp</code> to make sure it is listening on the port 80 by default. Then reload the page.</p>
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 02-45-24.png" alt="Server Setup" width="750" height="450">
+
+
+
+<p>More Hmm... Still no luck. We are looking for something like 'error from nginx server' rather than 'server down'. Maybe it is the firewall. Let's inspect it. Run <code>nano /etc/nftables.conf</code></p>
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 02-49-19.png" alt="Server Setup" width="750" height="450">
+
+
+<p>Ah ok. The firewall is blocking the traffic. It didn't have the allow rule so it is blocking the traffic using implicit deny. Let's configure it to accept port 80 traffic and restart nginx and see if we can get it working.</p>
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 03-01-40.png" alt="Server Setup" width="750" height="450">
+
+
+
+<p>Success! (kinda). Now we see the NGINX default page. (Behind the scenes, I had to disable HTTP to HTTPS redirection from Cloudflare). Since I already defined a location on the conf file for the Images directory, let's see if we can load an image. Please make sure the image exists at your server and try accessing it using correct path. I am trying to access <em>https://www.sushantadk.com/Images/RepurposingMyOldPhone/1000042982.jpg</em>.</p>
+
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 03-28-31.png" alt="Server Setup" width="750" height="450">
+
+
+<p>Ok now we got a 404 not found from NGINX. I double and triple checked the path and it seems correct. I am aware that nginx listens on port 80 from default, but let's seee where is it listening from. Run <code>grep -R "listen.*80" /etc/nginx/</code></p>
+
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 03-41-32.png" alt="Server Setup" width="750" height="450">
+
+<p>I see the problems. First, the server is listening from a different conf file than I expected. I expected it to listen from the <em>nginx.conf</em> file but it was actually listening from <em>/etc/nginx/sites-enabled/default</em>. Kinda stupid, but I don't judge. Second problem, the listen command should be inside the <em>server</em> block and isn't inherited from <em>http</em> block. I don't like these <em>sites-available</em> and <em>sites-enabled</em> directories so I am going to disable them, make my server block default, and add listen command there.</p>
+
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 03-50-49.png" alt="Server Setup" width="750" height="450">
+
+
+<p>Success! (kinda). Now we are getting 403 forbidden error instead of 404 not found. I am sure it is because of my user permissions. I will recursively add execute permissions to all the files on my website root directory for <em>others</em>, and try again.</p>
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 03-58-24.png" alt="Server Setup" width="750" height="450">
+
+
+<p>Ok! made it work. I was still getting the 403 error after adding the execute permissions on the website root directory, so I had to go one step above and add execute permissions to my home directory as well and now NGINX can traverse all the way and retreive the image I requested.</p>
+
+<p>Now let's go back to our configuration file and add more paths.</p>
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 10-56-39.png" alt="Server Setup" width="750" height="450">
+
+
+<p>This was new to me but pointing the root directory to 'templates' directory made everything that was static work. I can see why it worked now, because the templates directory had index.html file and it contains locations for everything else. So, I could point NGINX to the templates directory, and the index.html file there would handle the routing. Learn something new everyday I guess! It might not be the same for you but just adding location blocks shouldn't be too difficult.</p>
+<p>We just made our website reachable from the internet! Some things might be missing but this is a good start. We'll fix them (you guessed it) in a bit.</p>
+
+<h2>Configuring HTTPS connection</h2>
+
+<p>You can actually see a secure connection indicator in your browser's address bar when you visit your website over HTTPS. This is because of the SSL/TLS certificate managed by your domain registrar which secures the connections between the client and the domain server. But until now, there is no SSL/TLS certificate in your server, so the connection between your server and your domain server is not secure. Let's fix that.</p>
+
+<p>I use certbot to obtain and manage certificates on my server. Instructions for installing and using certbot can be found in the <a href="https://certbot.eff.org/instructions?ws=nginx&os=pip">certbot official documentation.</a> Let's just follow the instructions on the website for now. If I encounter anything interesting, I will document it here.</p>
+
+<p>When you get to a step where it gives you an option to get a certificate and automatically configure HTTPS, you can just pick that one and save some hassle.</p>
+
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 11-23-19.png" alt="Server Setup" width="750" height="450">
+
+
+<p>Certbot installed certificates from ACME server which will save me a lot of trouble in the future. (See the trouble at: <a href="../Projects/hardeningTheServer.html">Security Hardening and Assessment of a Self-Hosted ARM Alpine Linux Web Server</a>). Let's also set up automatic renewal following the instructions.</p>
+
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 11-32-15.png" alt="Server Setup" width="750" height="450">
+
+
+<p>Now to propery check if the HTTPS configuration is working correctly, you have to configure your domain's security settings to only allow HTTPS connections. In Cloudflare, you can do this by configuring SSL/TLS current encryption mode to Full (or Full Strict if available). Let's do that and try to load our website.</p>
+
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 11-36-25.png" alt="Server Setup" width="750" height="450">
+
+
+<p>As you can see, both the connections from your browser to the Cloudflare server, and Cloudflare to your origin server is now secure and the website is loading correctly over HTTPS. Yea it was that easy!</p>
+
+
+<h2>Dynamic Content</h2>
+
+<p>The static content is now served over HTTPS. Let's move on to serving dynamic content from our website. This section is minimal where I only enable the user input fields. There are two in my website: a user input log, and a numbers to words converter. Both of these work by taking user input, passing it down to my server where an executable processes it and returns the result if applicable. But there is a problem. NGINX isn't an application server, and we can't exactly ask it to run an executable. So, we need to find an application server. I will go with trusty Gunicorn running a Flask application. FYI, it is a good approach to do the next steps inside a virtual environment (venv), but I am going to skip that for now because this document is focused on 'how to make it work', you can 'optimize it' by yourself later.</p>
+
+<p>Let's run <code>apt-get install gunicorn</code> and <code>apt-get install python3-flask</code> to install Gunicorn and Flask.</p>
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 12-00-54.png" alt="Server Setup" width="750" height="450">
+
+
+<p>Then, let's write the flask application.</p>
+
+
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 12-14-44.png" alt="Server Setup" width="750" height="450">
+
+
+<p>Here it is! This script imports necessary components from the Flask package and names the application <em>app</em>. Then it works with <em>POST</em> method and the function names specified in the <em>.html</em> file. It stores the user input in a variable, runs a minimal validation, passes the input to the executable, and returns the result (or not).</p>
+
+<p><b>Pay Attention:</b> Now we have a Flask application, Gunicorn, and NGINX. These three components should work together to serve the dynamic content. The workflow is:
+<ul>
+<li>Client sends a request to NGINX.</li>
+<li>NGINX checks if it can serve the request itself. If it can, it serves the request. Otherwise, it forwards the request to Gunicorn.</li>
+<li>Gunicorn runs the Flask application.</li>
+<li>The Flask application passes the request to the executable. The executable processes the request and returns the result.</li>
+<li>Gunicorn sends the result back to NGINX.</li>
+<li>NGINX sends the result back to the client.</li>
+</ul>
+</p>
+
+<p>We don't have to worry about the part where the output goes back to NGINX from Flask. If we can configure input to reach Flask from NGINX, finding the way back is easy. So let's focus on that.</p>
+
+<p>Back to the NGINX official documentation -> Beginner's Guide, there is a section called "Setting Up a Simple Proxy Server".</p>
+
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 12-28-14.png" alt="Server Setup" width="750" height="450">
+
+
+<p>As you can see in the screenshot, I adapted the template from the guide, replacing the target location and 'localhost' with the address of the localhost, '127.0.0.1'. Now whenever a <em>/run</em> or <em>/writeSomething</em> request is received, it will be reverse proxied to the localhost address at port 8000. </p>
+
+<p>With the knowledge that everything which requires a Flask app to run if being forwarded to '127.0.0.1:8000', the next logical step is to configure Gunicorn to listen on that address, and run the flask application. It is simple, here is the syntax: 'Gunicorn, bind to 127.0.0.1:8000, and run this application'. Hmmm.. not quite maybe try this <code>gunicorn --bind 127.0.0.1:8000 dynamicServer:app</code>.</p>
+
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 12-46-27.png" alt="Server Setup" width="750" height="450">
+
+
+<p>Now you can see, my number to words converter is working! Similarly, writeSomething is also working. Full honesty, it didn't run the first time and I found that the issue was my precompiled executables copied from my phone. I had remove them and compile them again in this server to get them working. (Use g++. Easy!)</p>
+
+<p>It works but it is quite fragile because Gunicorn has taken over the terminal, and there are no logs being created. We can fix this by running: <code>nohup gunicorn --bind 127.0.0.1:8000 dynamicServer:app >gunicorn.log 2>&1 &</code>.</p>
+
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 12-52-11.png" alt="Server Setup" width="750" height="450">
+
+
+<p>Now you can see, Gunicorn is running on the background (&), keeping logs (gunicorn.log), and will continue running even if you exit your SSH session (nohup).</p>
+
+<p>Congratulations! You have now created a fully functional web server with Flask, Gunicorn, and NGINX, capable of serving both static and dynamic content.</p>
+
+
+<h2>Bonus</h2>
+<p>Really quick, let me tell you how to automatically start the website on boot. It requires starting Gunicorn, and NGINX at startup. Just run: <code>systemctl enable nginx</code>, and <code>systemctl enable gunicorn</code>. </p>
+
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 12-59-51.png" alt="Server Setup" width="750" height="450">
+
+
+<p>    But there is no service file for Gunicorn, so we need to create one. But first, let's create a regular script that can run Gunicorn.</p>
+
+
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 13-11-56.png" alt="Server Setup" width="750" height="450">
+
+
+
+<p>Here it is. (Hindsight Sushant here: Notice how my app says myPyScript instead of dynamicServer? It is because I tried to be sneaky and copy pasted my OpenRC script from my main server. This will go on to give me a lot of trouble in the future.) This script: kills running gunicorn processes, checks if it can access my home directory, and starts a new process. Next, Let's add a system user. Run: <code>adduser --system --group gunicorn</code>, and check if it was created using <code>id gunicorn</code>. </p> 
+
+
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 13-17-19.png" alt="Server Setup" width="750" height="450">
+
+
+<p>Let's create a service file for Gunicorn. Run <code>nano /etc/systemd/system/gunicorn.service</code>, and configure it as following.</p>
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 13-23-52.png" alt="Server Setup" width="750" height="450">
+
+<p>I have configured the file so that it needs valid network access to start, and runs my 'gunicornStart' script inside the <em>restartServices</em> directory. Next, reload the systemd daemon: <code>systemctl daemon-reload</code>, and run <code>systemctl enable gunicorn</code> so gunicorn is started on boot.</p>
+
+<p>Everything seems in order, so let's reboot the server and see if the website comes online at startup.</p>
+<img src="../../Images/buildingAServer/Screenshot From 2026-08-13 14-04-43.png" alt="Server Setup" width="750" height="450">
+
+
+
+<p>You can see here after the reboot, the website came back up and both the static and dynamic content are being served correctly. It actually didn't work the first time, because my restart script was in OpenRC format, and not systemd format, but after some troubleshooting, it's now functioning as expected. You can see the restart script in the Screenshot above, it's basically a stripped down version of what we had before because turns out, systemd does most of the work I was trying to do manually. OpenRC is like 'tell me everything that needs to be done', Systemd is like '<a href="https://tenor.com/view/dagestan-send-him-2-3-years-gif-14326579384410409432">Send him two years Dagestan and forget</a>'.</p>
+
+
+<h2>Conclusion</h2>
+<p>A laptop that couldn't properly boot into Windows was turned into a decent web server. HTTP and HTTPS traffic are now being handled efficiently with NGINX, Gunicorn, and Flask. Also, the server is now configured to start the website automatically on boot. Many things haven't been polished yet so you'll have to do some additional work on your own time.</p>
+
+
+<h2>What's next?</h2>
+<p>This is something that I have been planning for a while but hadn't gotten around to yet because I didn't have a backup server. The project is: Standby Server. I will configure this server to monitor my production server on standby mode. If my production server goes down, this server will take over, starts all the necessary services and hosts the website. Tools like <em>rsync</em> will be used to synchronize the data between servers, and my very crafty methods will be employed to handle the switch-over. You can find this project here: _____________. </p>
+
+</body>
+</html>

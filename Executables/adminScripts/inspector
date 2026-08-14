@@ -1,0 +1,4 @@
+#!/bin/bash
+
+echo "Configured current_max: $(cat /sys/class/power_supply/pm8150b-charger/current_max)"
+echo "Actual current_now: $(cat /sys/class/power_supply/pm8150b-charger/current_now)"

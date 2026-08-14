@@ -1,0 +1,27 @@
+#!/bin/bash
+
+BAT=$(cat /sys/class/power_supply/qcom_qg/capacity)
+
+
+echo "Battery = $BAT"
+
+if [ "$BAT" -ge 90 ]; then
+	echo 0 > /home/user/myWebsite/Executables/adminScripts/batteryAdmin
+	echo "Battery >= 90%, limiting charge."
+	echo 150000 > /sys/class/power_supply/pm8150b-charger/current_max
+elif [ "$BAT" -le 50 ]; then
+	echo 1 > /home/user/myWebsite/Executables/adminScripts/batteryAdmin
+fi
+
+
+Status=$(cat /home/user/myWebsite/Executables/adminScripts/batteryAdmin)
+
+if [ "$Status" -eq 1 ]; then 
+	echo "Battery < 90%, allowing faster charge."
+	echo "Echoing in 1500000"
+	echo 1500000 > /sys/class/power_supply/pm8150b-charger/current_max
+fi
+
+echo "Configured current_max: $(cat /sys/class/power_supply/pm8150b-charger/current_max)"
+echo "Actual current_now: $(cat /sys/class/power_supply/pm8150b-charger/current_now)"
+echo "Status=$Status"

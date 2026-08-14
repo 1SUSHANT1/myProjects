@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Installing Linux on Android phone</title>
+
+</head>
+
+<body>
+
+    <header> 
+
+        <h1> Repurposing My Old Phone</h1>
+
+    </header>
+    <h2>Project status: <b>Complete</b></h2>
+
+    <h2> Disclaimer:</h2>
+
+    <p> This paper is only meant for Android phones.
+    </p>
+
+    <p>This paper is being written as I go, so I have no idea what comes next.
+</p>
+
+<p>This paper undermines the value of terms and conditions, and warnings with instructions such as 'Rapidly click through the warnings', 'Ignore the warnings', 'don't be hesitant to download free official tools from shady websites' and much more. Before adapting anything from this paper to your setup, evaluate every click of a button, and make sure you read the terms and conditions, and warnings, and feel free to stop if you believe following the instructions on this paper will harm your computer/phone.   
+</p>
+
+<p>This paper is not meant to be a general step by step guide. This paper is specifically meant for a Redmi Note 10 pro. For Xiaomi phones, this paper can be a very close guide, though at times you have to make your own judgement. For all the other Android phones, I recommend reading through the paper first, before following along.
+</p>
+
+<p>After you are through following along with this paper, you might not accomplish what you were after. This paper does have fallback, and recovery plans, but worst case scenario, your phone will be damaged beyond the scope of this paper. All the disclaimers and warnings on your phone and laptop will repeatedly remind you of that, and following along means the acceptance of the risk.   
+</p>
+    
+
+
+<p>You should be using Linux OS or should have a Linux VM that supports USB passthrough.</p>
+
+<p>What is this paper really about? <br>->It is about taking your old phone and turning it into a Linux server capable of hosting a website. More importantly, it is about the journey of figuring out how to get there, working through roadblocks, debugging unexpected problems, and learning how the pieces fit together along the way. 
+</p>
+
+<p>Finally, what is considered success for this project?<br>-> If the phone can boot up and host linux operating system with at least USB networking, Storage and Wifi working, this project will be considered successful because that's the healthy minimum for a headless server. This means that your phone's screen,
+    camera, mic, biometrics, and other functionalities might not work and the project can still be considered successful.
+</p>
+
+<h2>Get Your Device </h2>
+
+<p> I need a Raspberry PI. At the very minimum, I need to host a website. How much does one even cost these days anyway? <a href="https://tenor.com/view/wow-gif-6969090933602239218">Holy Guacamole,</a> 200$? I could get a fully functional smartphone for that money. Who pays 200$ for a fragile, ugly looking tiny board? Well speaking of which, aren't Android phones just Linux machines? And whatever happened to my old phone? (which I dropped from the fourth floor, cracked the screen, camera went blank but somehow all the other operations were fine, back in New York and has been living inside my car's glove-box ever since). I was so crazy to get that phone. Just off of high school, I needed something powerful to play games and show off to my friends. I specifically remember it was Redmi Note 10 Pro, Snapdragon 732G processor, and 6GB RAM(I know this because I have recited these specs to each one of my friends at least twice). It has enough processing power to handle my website and a little server plus it comes with a battery! a built in UPS. I wonder if I still have it.
+</p>
+
+    -<img src ="../../Images/RepurposingMyOldPhone/1000042982.jpg" alt="Found my phone" width="750" height="600">
+
+<br>
+
+Just like I remember it! Still in mint condition. I hope I can resurrect it.
+<br>....<br>
+And resurrected it is.
+
+<br>
+
+
+<h2>Plan</h2>
+
+<p> So here's the plan: Bye Bye Android, Welcome Linux. (real discriptive, guy)
+</p>
+
+<h2>Unlocking the bootloader</h2>
+
+<p>First, let's try to unlock the bootloader so the phone lets us run foreign operating systems. So, let's enable developer options. <code>Settings -> About Phone -> Tap on MIUI version</code> until the phone tells you that you are a developer(pretty easy to become a developer huh?). 
+    Let's now browse the developer options. <code>Settings -> Additional Settings -> Developer options</code>. After scouring all the available options, the ones I found helpful for my goal were OEM unlocking, Mi Unlock status, and USB debugging. 
+    To limit the amount of damage we can do, let's just enable OEM unlocking to allow bootloader to be unlocked, and USB debugging to send commands to the phone from laptop via USB for now. We can come back here if we need anything else. 
+    Now let's browse to Mi Unlock Status. It will give you a warning on the consequences of unlocking your phone, but if you're as determined and low on money as me, you'll click through all the warnings. The steps tell you to put a SIM card in the phone, and add a MIUI account on your phone using mobile data. 
+    I have a physical SIM which I remove from my new phone, and mount in my old one. Now if you are running an eSIM, you might be saying "uh-oh". But with eSIM, you can always <a href="https://tenor.com/view/dw-gif-14685961547278654363">sit back and cry</a> (I do not know what to do here. Maybe you should run to the store and get a SIM card). 
+    The next step is to download the unlock tool from <a href="https://unlock.update.miui.com" target="_blank">https://unlock.update.miui.com</a>. You can find this link in the MI Unlock status option inside developer options. If you go to the website, and click Unlock now,
+</p>
+
+    <img src ="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-16 12-23-01.png" alt="Unlock Tool" width="750" height="450">
+
+    <p>A Chinese bunny man will apologize to you and will try to redirect to the forums app (what good is that going to do?).
+    </p>
+
+
+    <h2>Getting the tool from not so official website</h2>
+
+    <p>But a quick google search reveals that the tool is called Mi Unlock app, and the latest version is: 7.6.727.43. 
+
+        <br>The official Xiaomi website was unhelpful so I browsed to <a href="https://www.getdroidtips.com/download-mi-flash-unlock-tool-for-windows/" target="_blank">https://www.getdroidtips.com/download-mi-flash-unlock-tool-for-windows/</a>. The nice man here had some useful information and details on the tool, and the download link. 
+    </p>
+
+<img src ="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-16 12-30-30.png" alt="Unofficial website" width="750" height="450">
+
+
+<p>Make sure to download the latest version available. Now many of you if not all will be hesitant to download an official tool from a website like this, but this is what I did and haven't noticed any free loaders yet (though I can't deny their existence). Proceed at your own risk I guess. By the time you try this, maybe Xiaomi will allow the download of the official tool from their website too.
+</p>
+
+<h2> Trying Wine</h2>
+
+<p> Now there's another problem. Remember when you got so mad at Windows and decided to do away with Windows forever and installed Ubuntu?(no? well I do).  So turns out, most of the tools,
+     applications and services are released for Windows. And you have to run some third party service to host your Windows app on Ubuntu. I accomplish this with wine. Now you could, <a href="https://tenor.com/view/one-of-those-days-gif-26586745">get 
+     drunk</a> and follow along but I was talking about wine the Linux utility. Wine can host the .exe file in Ubuntu. To install wine, update your repository with <code>sudo apt update</code>, and 
+     install wine with <code>sudo apt-get install wine</code>.
+</p>
+
+    <img src ="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-16 12-40-55.png" alt="Installing wine" width="750" height="450">
+
+    <p> In my case, I already have it installed but if you're installing it right now, at some point, you have to answer y to are you sure? type question.
+    </p>
+
+    <p>Now with wine installed, let's browse to the downloads folder. When unzipping, make sure to put the .zip file on a folder to avoid making a mess.  And now, just run <code>unzip fileName</code>. With the file unzipped, find the appropriate .exe file (in my case, miflash_unlock.exe) and run it with wine with <code>wine fileName</code>.
+    </p>
+
+    <img src ="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-16 12-52-22.png" alt="Wine Running Unlock tool" width="750" height="450">
+
+    <p>This page indicates that we should already have a Xiaomi Account on our phone. Let's go back to our phone, <code>Settings -> Xiaomi Account</code> and create an account. Now with the same credentials, log in to the unlock tool. If the tool gets stuck on authentication, it is because you do not have the latest tool installed. 
+    <br>After logging in, feel free to read the disclaimer and  click Agree to continue.
+    </p>
+
+    <img src ="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-16 13-04-05.png" alt="Unlock tool disclaimer" width="750" height="450">
+
+<p>Like the tool suggests, power off your phone. After the phone is completely off, press volume down button + power button to enter the fastboot mode. Once the device displays FASTBOOT, let go of the buttons and connect the phone to your laptop via a USB cable. 
+</p>
+    <p>And then wait for it, wait for it.
+    </p>
+    <p>Trouble.
+        <br> <a href="https://tenor.com/view/loki-falling-tom-hiddleston-falling-gif-13421519">I have been waiting, for thirty minutes!</a> with the phone in fastboot mode and plugged in, and the app still says "Not connected to the phone". There is no reason for wine to not work.... unless, wine doesn't have access to USB devices. OK, let's go back, and give wine the permission to read USB devices, and come back.</p>
+
+<p>Now I'm not a wine expert (they all taste same to me). So let's view the wine man pages to find info about access to USB devices. Trouble. The man pages for wine don't even mention USB! 
+</p>
+
+
+<img src ="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-17 11-31-59.png" alt="Wine man pages" width="750" height="450">
+
+<p>Let's scour the internet to find any info on wine with USB. <br>MAJOR ROADBLOCK. <br> Turns out, If a Windows application specifically expects raw USB access (e.g., it uses a Windows USB driver), Wine often cannot provide that. Some applications work, but others require a real Windows installation or a virtual machine with USB passthrough. A user on Reddit says "Use a virtual machine with a Windows guest in it. Wine has never been designed to support hardware access, it's an API-translation layer. Presenting Linux devices to Windows drivers is a entirely different task", and rest of the internet seems to agree with him. Now who are we to disagree with random wise guy on the internet? So now, Let's set up a Windows virtual machine.
+</p>
+
+<p>I am aware that a lot of the users are thinking that they didn't want to drink wine and their Windows works fine.  Well, here we meet again. Wine tasting went horribly bad so I'm now using an Windows VM which should be very close to the real Windows machine.
+</p>
+
+<h2>Using Windows VM Instead</h2>
+
+<p>I am running Windows inside VirtualBox, but the process should be similar for any other VM or the real Windows machine.  Download the Mi Unlock tool and unzip it again but inside Windows this time. Let's now login to the tool with our Xiaomi Account, Authenticate and press agree.<br>
+     Strange, the tool now running on windows also says "Not connected to the phone". Let's unplug the phone, boot it in fastboot and that should fix it. After the phone screen says FASTBOOT, plug the phone to the laptop back in and then wait for it, wait for it.
+</p>
+
+<p>I have been waiting, for thirty minutes! Ah! I see what happened, VirtualBox doesn't automatically get all the connected devices. You have to <code>Devices -> USB</code> and you should see your phone. Click on your phone and come back to the unlock tool. Then wait for it, wait for it.
+</p>
+
+<p>I have been waiting, for thirty minutes! (alright I'll stop). The tool still doesn't detect the phone. To diagnose further, let's open Device Manager, and we can see our phone listed under <em>Other Devices</em> as <em>Android</em> with a question mark and exclamation mark. The phone isn't properly recognized by Windows. Most likely it is because the phone is in fastboot mode and phones act differently when plugged in as regular Android vs in fastboot.
+</p>
+
+<p>Now as every self respecting human, let's double click on <em>Android</em> to see the issue. The prompt reads "There are no compatible drivers for this device". Naturally, Let's click <em>Update Driver</em>.
+</p>
+
+<img src = "../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-16 14-02-23.png" alt="Drivers not found" width="750" height="450"> 
+
+<p>There are options to <em>Search automatically for drivers</em>, <em>Browse my computer for drivers,</em> and <em>Let me pick from a list of available drivers on my computer</em>. Now if any of these works for you, you should be good to head back to the unlock tool and proceed but unfortunately for me, I couldn't find any Android drivers using this method.
+</p>
+
+
+<h2>Finding the Correct Driver</h2>
+
+<p>But it's not that big of a problem. It just means that we have to get the driver. And the nice folks at Android studio have just that!
+</p>
+
+<img src ="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-16 13-58-46.png" alt="Android Studio" width="750" height="450">  
+
+<p>We need the Google USB Driver. If we search for Google USB Driver, first website that comes up is from android studio. Here is the link if you can't find it <a href="https://developer.android.com/studio/run/win-usb">https://developer.android.com/studio/run/win-usb</a>. As the website states, The Google USB Driver is required to perform ADB debugging on Windows with Google devices. This is exactly what we need.
+</p>
+
+<p>Let's download the file. It will be a .zip file so you will need to unzip it.  This should be all. Let's head back to device manager, <code>Other devices -> Android -> Update Driver -> Browse my computer for drivers -> Browse</code> and point it to the unzipped Google USB Driver and press OK.
+</p>
+
+<img src ="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-16 14-03-10.png" alt="Google USB Driver" width="750" height="450">       
+
+<p>Now if you are turning red and if there is a sudden <a href="https://tenor.com/view/pissed-laptop-gif-9839776">urge to break your laptop</a>, just relax. The same thing happened to me but it will work out.
+</p>
+
+<img src = "../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-16 14-18-53.png" alt="Driver Failed to Install" width="750" height="450">   
+
+<h2> Carefully Modifying a File</h2>
+
+<p>All this time modifying Linux config files (assuming you did because it's going to get tricky if you don't have basic knowledge of it) will help you modify a Windows file. Under the <em>usb_driver</em> folder, find <em>android_winusb</em> file and open it with notepad. We see that this file has names of manufacturers, and device architecture followed by instructions to install drivers for specific versions of the USB devices. Let's go back to <code>Device Manager -> Other Devices -> Android -> Events.</code> Under Information, you find the hardware ID for your device which will look something like <code>USB\VID_18D1&PID_D00D</code> (make sure to get substitute your own hardware ID in the following sections). If we go back to the <em>android_winusb</em> file and try to locate this ID, we won't be able to, and the reason driver didn't install the first time is because the hardware ID didn't exist in the config file.
+</p>
+
+<img src ="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-16 14-28-32.png" alt="Hardware ID" width="750" height="450">     
+
+<p>So this means we will have to modify the <em>android_winusb</em> file to install the driver for our phone's hardware ID.
+<br>We do this by simply adding the instructions to the file. Now I am not a <em>android_winusb</em> expert either. I will make a best guess by looking at the syntax of other lines in the file, and you should also do the same for your phone using the syntax on the file, your phone's manufacturer, and your phone's architecture OR, get help from android studio. 
+<br>First, locate the correct section. In my case it is [Google.NT amd64], because that's the name of the manufacturer and architecture of my phone. You can also find the correct section for you following this logic.
+</p>
+
+<img src ="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-16 14-39-29.png" alt="android_winusb file" width="750" height="450"> 
+
+<p>I see there are two different values on the right hand side of the assignment operator.  %SingleAdbInterface%, and %CompositeAdbInterface%. Now using my pattern recognition skills (make sure you do the same but you can look at my work for reference),  I look at the right hand side of the assignment operator.  The RHS value for %SingleAdbInterface%, is shorter than %CompositeAdbInterface%. Looking at my hardware ID, <code>USB\VID_18D1&PID_D00D</code>, it is the short one! so let's add the line <code>%SingleAdbInterface% = USB_Install, USB\VID_18D1&PID_D00D</code> at the end of the section , save the file, hope for the best, and exit.
+</p>
+
+<img src ="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-16 14-40-07.png" alt="android_winusb file modified" width="750" height="450">    
+
+<p>Now just like before, <code>Device manager -> Other devices -> Android -> Update drivers -> Browse my computer for drivers -> Browse,</code> and point it to the Google USB driver usb_driver folder and press next.
+</p>
+
+<h2>Bypassing the Driver Signature Enforcement</h2>
+
+<p>Still hold on to the urge to destroy your computer.</p>
+
+<img src ="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-16 14-42-24.png" alt="Windows doesn't trust the modified file" width="750" height="450">    
+
+<p>This doesn't necessarily mean that the modification didn't work. It just means that we introduced something new to the android_winusb file but we didn't add the hash for the file in the specified catalog file. The system is just trying to protect us because it thinks the modified file is malicious. Now with the knowledge the we're the ones who did the <em>hopefully unmalicious</em> modification, we have two options: Solve the hash situation, or turn this protection off.
+</p>
+
+<p>I will go ahead with Disabling the Driver Signature Enforcement off. Hold shift, then restart the PC. As the PC is preparing to restart, spam F7. The system will prompt you to choose an option. Go to troubleshoot, Advanced Options, Startup Settings. Under <em>Restart to change Windows options such as:</em>, notice the line, Disable driver signature enforcement. Now when you press restart, you can disable the enforcement and install the driver.
+</p>
+
+<img src ="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-16 14-52-50.png" alt="Startup Settings" width="750" height="450">    
+
+<p>
+After the system powers on, it will prompt you to choose an option. Press 7 which is the option to Disable Driver Signature Enforcement.
+</p>
+
+<img src ="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-16 14-53-11.png" alt="Disable Driver Signature Enforcement" width="750" height="450">    
+
+<p>(Hopefully) Finally, <code>Device manager -> Other devices -> Android -> Update drivers -> Browse my computer for drivers -> Browse</code>, and point it to the Google USB driver usb_driver folder and press next.
+</p>
+
+<img src = "../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-16 14-55-03.png" alt="Windows warning" width="750" height="450">   
+
+<p>Ignore the windows warning, and select the option to Install driver anyway and the driver should install! Notice inside Device manager, the Android device is now running Android ADB Interface.
+</p>
+
+<p>If you forgot why we were doing this, we were just trying to get Mi Unlock tool to detect the phone. Make sure to keep the phone in fastboot mode, and open the tool, login then...
+</p>
+
+<img src = "../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-16 14-59-11.png" alt="Mi Unlock tool detects phone" width="750" height="450">   
+
+<p>Now you can see that the phone is connected, and now we have the option to Unlock the phone. Just press the unlock button, rapidly click through all the warnings and then...
+</p>
+
+<img src ="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-16 15-01-42.png" alt="Couldn't unlock the phone" width="750" height="450">
+
+<p>Oh well. Now we wait. Unless you've got an '81 DeLorean running <a href="https://tenor.com/view/the-flux-capacitor-energy-time-travel-excited-dr-emmet-brown-gif-16482144">flux capacitors.</a>
+</p>
+
+<h2>Backout Plan</h2>
+
+<p>Ahem Ahem.. Teaching moment here. I know you are excited to get the server up and running as soon as possible. In doing so, many people skip the most important plan, backup because it looks unnecessary, and there is hope that things will work out the first time. But welcome to the real world, where things do go wrong. Me personally, I won't ever work on my car without taking pictures of the original configuration first, never proceed on a VM without a snapshot, and never straight wire a <a href="https://tenor.com/view/transformer-gif-24446970">fuse </a>(that was a long time ago). In this case, I won't move ahead without creating a backup in case your phone and Linux don't see eye to eye. We accomplish this by making a recovery image of our phone's firmware that we can flash onto the phone.
+</p>
+
+
+<p>There are two options. Nandroid backup and Factory image. Nandroid backup captures your phone in the current state, so if anything goes wrong and you flash this image, your phone returns back to the previous state with all your apps and settings (wow let's pick this one). Factory image is the image provided by your phone's manufacturer that will return your phone to the factory version and settings(booring). 
+</p>
+
+<p>Nandroid backup isn't really feasible for us because it requires the phone to be already unlocked. But to unlock it, we do need to wipe everything. So sadly, if there is anything on your phone worth saving, you should create your own backup now. 
+</p>
+
+<p>Let's go ahead and download the factory image. Let's first figure out what phone you have. Go to <code>Settings -> About Phone</code> and you should see your phone's name. But the phone's name alone isn't the most reliable option because phones may have same names even if they are running different firmware. So let's go one step further to <em>All specs</em> or <em>Detailed Specs</em>. You can find your phone's model number here. Mine is <em>M2101K6G</em>. Before we move on, take a screenshot and back it up so you know what you started with. Let's now google <code>yourPhone'sModelNumber factory image</code>. 
+</p>
+
+<p>There are two types of images, Recovery ROM and Fastboot ROM. Recovery ROM is used for partial upgrade, and Fastboot ROM is a complete firmware package. Since we are working with something that can turn your phone into a brick, make sure you download Fastboot ROM which can unbrick dead devices.  If you can find the image from your phone's original manufacturer, you can go ahead and download it, just make sure all the details match. For me, I couldn't find the image from the original manufacturer so I'm downloading it from <a href="https://xmfirmwareupdater.com/miui/sweet/stable/V14.0.8.0.TKFMIXM/">https://xmfirmwareupdater.com/miui/sweet/stable/V14.0.8.0.TKFMIXM/</a>.
+</p>
+
+<img src ="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-17 13-08-54.png" alt="Downloading factory image" width="750" height="450">
+
+<p>Notice I'm downloading it on Linux because we won't be using another one of the flashy windows apps to do the flashing. We will use fastboot and ADB, Linux tools to accomplish the flash.
+</p>
+
+<p>After the image finishes downloading, let's calculate the MD5 hash and compare it to the hash posted on the website. To do this, open the terminal, browse to the Downloads folder and run <code>MD5sum fileName</code>. If the MD5 hashes are the same, the download is successful. If the hashes are different, try downloading the file again to see if that fixes it or try another website but never trust the file. 
+</p>
+
+<img src ="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-17 13-51-18.png" alt="MD5 hash" width="750" height="450">    
+
+<h2>Recovery Procedure</h2>
+
+<p>I still have 5 more days to wait before I can unlock the phone so I will explain the recovery procedure here.
+</p>
+
+<p>First, let's extract the file we just downloaded. To do this, run <code>tar -xvf fileName.tgz</code>.
+</p>
+
+<img src ="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-17 14-03-18.png" alt="Extracting factory image" width="750" height="450">    
+
+<p>After extracting it, browse to the images directory and notice various .img files. These are all image files. We don't know which ones to flash and what order to flash them in. But luckily for us, the <em>flash_all.sh</em> script, which came with the downloaded package, contains pre-written instructions that perform necessary checks to perform the flash and flashes the necessary files in the correct order.  Since this is a specialized script, it is not so easy to read but feel free to do so if you like. I'm going with the black box method where I run the script without knowing what's in it (that's if i don't encounter any problems. If I do, I may have to come back to it).
+</p>
+
+<p>Recovery Procedure:</p>
+<ol>
+    <li> Put your phone in fastboot mode. <b>Trying wine</b> section has how-to instructions.</li>
+    <li> Connect your phone to your laptop using a cable. </li>
+    <li> From the terminal, run <code>fastboot devices</code>. Your phone should return its serial number. If it does, you're good to proceed but if it doesn't return anything, make sure steps 1-3 are done correctly. </li>
+    <img src ="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-17 14-27-26.png" alt="fastboot devices" width="750" height="450">
+    <li>Browse to the extracted directory of the recovery file, and locate the file <em>flash_all.sh.</em> </li>
+    <li>View the permissions for the file <em>flash_all.sh.</em> Everyone should have execute permissions by default but if somehow you don't, add enough permissions to the file using <code>chmod</code> so that the user you are running as can execute that file. </li>
+    <li>ONLY IF YOU WANT TO RECOVER THE DEVICE, Run the script using ./flash_all.sh. </li>
+    <img src = "../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-17 14-36-41.png" alt="Running flash_all.sh" width="750" height="450">
+</ol>
+
+<p>
+    This is where you and I stop if we don't have to recover the device right now.
+</p>
+
+<p>Later, there will be instructions to come back and follow the steps all the way to running the script if we do encounter problems. For now, let's just go back and wait until the 7 day countdown is over.
+</p>
+
+<h2>Waiting Period</h2>
+
+<p>
+Have 7 days been always this long, or is the government messing with the daylight savings again? Anyway, I have to figure out something to do for the next 4 days. Maybe take a shower. <a href="https://tenor.com/view/dog-sniff-gif-3199815179106739551">Sniff sniff</a>... nah I'm not due until next week.
+</p>
+
+<p>
+Maybe Research. Yes! Let's do some research. Let's at least figure out what operating system to run. I'd be very happy if there is an OS compatible for my phone capable of running mainstream Linux.
+</p>
+
+<h2>Research</h2>
+
+
+<p>Wouldn't be much of a research if I just you told everything now, would it? Rather, I will tell you what I did, and how I did it so you can do your own research with a little help.
+
+</p>
+
+<p>First thing I did, was search <em> Redmi Note 10 Pro Linux.</em> The first website that came up was postmarketos.org. Let's see what it has to offer.
+</p>
+
+<img src = "../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-19 12-32-24.png" alt="" width="750" height="450">
+
+<p>It appears that my phone does have some support from the Linux community. In the website, I can see my phone's operating system is maintained by "The sm7150-mainline team".  After further digging, The OS is a generic port for for Qualcomm Snapdragon 730/730G/732G (SM7150) based devices that utilize U-Boot and systemd-boot. 
+
+</p>
+
+<p>This is because phones use SoC, which is a single microchip that integrates all or most of the essential electronic components of a computer. This system on chip is what makes phones so much capable even though they are tenfold smaller than computers and laptops. 
+    This follows that phones with similar SoCs can run similar operating systems. This is the reason for postmarketOS is maintaining a single OS for SM1750 family. You might also find(or not find) device specific OS for your phone if your phone is one of a kind.</p>
+
+
+<p>Further digging shows that the OS for my phone is still in testing category (ouch!).  If your phone is under stable category, you're golden. If I navigate to Features, I see that majority of the features still work, with some untested, partial and broken.
+
+</p>
+
+<img src = "../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-19 12-57-31.png" alt="" width="750" height="450">
+
+
+<p>This is certainly better than I expected, especially with the screen working, we can see the OS without plugging it on our laptop or using SSH. One thing that worries me is that the Battery feature is under 'partial'. It's hard to be sure what exactly is partial, 
+    and the description makes it sounds like the issue is between charging and battery level reporting (I hope this isn't another project waiting for me). Hopefully, this isn't the case for you.
+
+</p>
+
+
+<p>I did look at few other options of OS we can run android phones, and it looks like postmarketOS has the best support for my phone, and it offers mainline Linux to run on the phone. 
+    Feel free to browse around and make a decision as to which one you want to go with.I am going with postmarketOS.</p>
+
+    <h2>postmarketOS setup</h2>
+
+<p>Find your phone in the postmarketOS website, and after verifying the details and compatibility for the phone, let's move on to the installation instructions. Please make sure you FOLLOW THE INSTALLATION INSTRUCTIONS FROM THE WEBSITE because your installation process might be very different than mine. If it is, we'll meet again when setup is complete. I recommend reading the installation section anyway and reviewing what I have done before you proceed.
+</p>
+<p>
+There are two installation methods: Using a pre-built image, and Install with pmbootstrap. Pre-built image is the quicker, simpler method for select devices from 'main', and 'community' categories. pmbootstrap method is for all devices with customization options for developers/advanced users. My phone is not one of the select devices so I will have to use the pmbootstrap method.
+</p>
+
+<p>I know that some of the people who have to use the pmbootstrap method might be thinking that they are not developers/advanced users. Let me promote you to an advanced user. Ahem Ahem.. <a href="https://tenor.com/view/knight-santaclaritadiet-gif-18624053">Arise Sir Reader</a> (Achievement : Advanced User, Aura+1000 points). 
+    Now that you have been promoted to an advanced user, you can follow along with the installation instructions.
+</p>
+<p>
+Let's now install pmbootstrap. You can get it from your package manager with simply <code>sudo apt-get install pmbootstrap</code>.
+</p>
+
+<img src = "../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-19 13-39-20.png" alt="" width="750" height="450">
+
+<p>With pmbootstrap installed, let's follow along with the rest of the instructions.
+</p>
+<p>
+After <a href ="https://tenor.com/view/fml-sylvester-cat-annoyed-headbang-gif-7605980029532191439">banging my head</a> on the wall a few times, going back and reading the instructions multiple times, I found that when you are prompted to enter the vendor, you aren't supposed to blindly put the name of your vendor. Notice in the screenshot below(top half), I couldn't find my phone, xiaomi-sweet. Once I saw that, my world almost fell apart because if the setup existed (the website suggests it does) and they hadn't uploaded it yet, 
+I'd have to wait until they did and I wouldn't be able to complete this project when the phone unlocks.
+</p>
+
+<img src = "../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-19 14-21-41.png" alt="" width="750" height="450">
+
+
+<p>A few sentences that came to my rescue were "This device is supported as part of a generic port. Refer to
+     <a href="https://wiki.postmarketos.org/wiki/Generic_SM7150_(qcom-sm7150)">Generic SM7150 (qcom-sm7150) </a>
+    for installation instructions and more information.", and "Some devices are supported as part of
+    <a href="https://wiki.postmarketos.org/wiki/Category:Generic">generic ports</a>
+    , meaning that a single port supports multiple similar devices. In some of those cases, 
+    you may need to choose the vendor and codename for the generic port instead - check the instructions on your device page if you can't find it in the device list for your vendor." So, instead of entering the actual vendor, I went to the generic port page and found that the input pmbootstrap was looking for was: qcom - sm7150, from the section :Codename: qcom-sm7150.
+</p>
+
+<img src = "../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-19 14-30-01.png" alt="" width="750" height="450">
+
+
+<p>Once I entered qcom for the vendor, I can see the codename options now mention, sm7150, which is the correct one in my case.
+
+</p>
+
+<img src = "../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-19 14-21-41.png" alt="" width="750" height="450">
+
+
+<p>You can proceed with the setup process. There will be multiple questions, but the default options were good for me most of the times. Make sure to carefully read the options, and get help if you want to make sure you set it up right.
+</p>
+
+<img src = "../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-19 14-40-29.png" alt="" width="750" height="450">
+
+
+<p>Now pmbootstrap is initialized, and knows what device we are working with along with all the information we just provided. Let's move on and generate the image. This is a 2 step process, where instead of directly writing the files to the phone, pmbootstrap first creates all the necessary files on your computer and then flashes these files to your phone.
+</p>
+<p>
+As the installation instructions suggest, let's run <code>pmbootstrap install</code>. There are parameters and flags you can combine with it  but none of them apply to me. 
+<br>Right off the bat, I get warnings. These are warnings of version mismatch between the pmbootstrap we have and the pmbootstrap which is currently serving the files. We do not have the latest pmbootstrap version. 
+As careful of a reader I am, I go back to this line: "The easiest way to install pmbootstrap is through your distribution's package manager. If it's not available in the repositories, or if the packaged version is outdated, you can 
+<a href="https://wiki.postmarketos.org/wiki/Pmbootstrap/Installation">install the latest version directly from git</a>"
+
+</p>
+
+<img src = "../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-20 00-39-37.png" alt="" width="750" height="450">
+
+ <p>Looks like pmbootstrap repo isn't properly maintained in my OS distro.  I stopped the installation process with <code>ctrl+c</code>, removed pmbootstrap from my laptop using <code>pmbootstrap zap</code>, and <code>apt-get remove pmbootstrap</code>. Just to make sure there is no overlap with the new pmbootstrap, I also ran <code>apt purge pmbootstrap</code> to start with a clean slate.
+
+You can follow this link, <a href="https://wiki.postmarketos.org/wiki/Pmbootstrap/Installation">install the latest version directly from git</a>, and install pmbootstrap using  <code>git clone</code>, which should be the latest version and hopefully we don't get any warnings this time. 
+</p>
+<img src = "../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-20 01-16-22.png" alt="" width="750" height="450">
+
+<p>
+    IF THE pmbootstrap VERSION ON YOUR OS's REPOSITORY is OUTDATED, CONSIDER INSTALLING IT FROM THE OFFICIAL GIT REPOSITORY.
+</p>
+<p>
+After following the instructions on the page, let's again run <code>pmbootstrap init</code>. This time, I noticed something that I had speed-run through last time. We have an option to install additional packages, which will be available on our phone once it boots up with Linux. 
+Technically, you can get everything working using USB networking but this is like a shortcut, where the packages you specify are already available on your phone, so I am specifying: python3,git,nano,vim,curl,wget,htop,openssh,tmux. Not bad formatting, this is how you should enter them. These packages are custom to my need, so feel free to specify any packages you'd like. 
+</p>
+
+<img src = "../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-20 01-16-33.png" alt="" width="750" height="450">
+
+
+<p>After pmbootstrap is initialized, let's now run <code>pmbootstrap install</code>. This is an automated process which builds the image from the options you chose in <code>pmbootstrap init</code>. Now when you run it this time, there should be no warnings, because the version running on the server, and the version of our package are both latest.  Feel free to skim through the installation process to have an idea of what to expect after flashing Linux.
+</p>
+<img src="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-20 01-45-13.png" alt="" width="750" height="450">
+<p>
+In the flashing section of the installation process, a line says "At this point, <b>read the Installation section in your device's wiki page</b>. The wiki page for your device might contain additional information or prerequisites for flashing (for example, 
+some devices will require you to flash a secondary bootloader like lk2nd before flashing the other images)". So let's go back to out phone's wiki page to see if there is any info there.
+</p>
+
+
+<p>Sure enough, for my phone, there is a pre-requisite secondary bootloader that should be flashed before flashing the Linux image. Your phone may have a different secondary bootloader required or none. If there is a secondary bootloader, you have to flash the bootloader first, and then flash the linux, but if there's none, you can flash Linux right away.</p>
+
+
+<img src = "../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-20 02-16-34.png" alt="" width="750" height="450">
+
+
+<p>Following the link for U-boot and matching the correct vendor and codename for your device, you can download the U-boot image. This time, the vendor name and code names are your phone's actual vendor name and code name, for me, it's xiaomi-sweet. After downloading, calculate the appropriate hash from your terminal like we did with the fastboot ROM, and make sure that it is the same as posted on the website.
+</p>
+<p>
+One thing to note. Installing U-Boot section is followed by Pre-built Images, and pmbootstrap in the screenshot above. However, we are not using that progression, installation method is either Pre-built Images, or pmbootstrap, in our case, it is pmbootstrap method. So don't run all the commands you see in progression here.
+</p>
+
+
+<p>We have everything we need to perform the flash. Only two steps remain to flash the Linux OS onto our phone. First, flash U-Boot then Second, flash pmbootstrap flash_rootfs.
+</p>
+<p>
+However, there is one problem.
+</p>
+<img src = "../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-20 02-34-56.png" alt="" width="750" height="450">
+
+
+<p>I still have 75 hours of <a href="https://tenor.com/view/mr-bean-mrbean-bean-mr-bean-holiday-mr-bean-holiday-movie-gif-3228235746377647455">waiting</a> to do before my phone is unlocked! How is the waiting period to unlock a phone more than the waiting period to buy a gun? <br>
+     Anyway, being the productive person as I am, 
+    I had started to build a website yesterday. Problem? I was done yesterday!(even tho more work will come up as I progress with this paper). 
+    It is because the website is going to be very simple as it will be hosted even before the server is hardened, so to limit the attack surface, it is just bare boned website with just a few pages and very basic functionalities. 
+    Read about it here:    <a href="../SupportingDocuments/myWebsite.html">Initial Configuration of My Website</a>     
+  </p>
+
+  <p>Something to take away from this section is that this section is more about following the instructions correctly rather than being a computer genius.</p>
+
+<p>Now with that being said,  I will be <a href="https://tenor.com/view/worried-waiting-gif-19902178">pacing my room</a> for the next 75 hours. I suggest you do the same.</p>
+
+
+<h2>Finally Unlocking the phone</h2>
+<p>WARNING: THIS IS YOUR LAST CHANCE TO BACK UP YOUR DATA.</p>
+
+<p>Welcome back. Let's jump right in and unlock the phone. Follow these steps:
+
+<ol>
+        <li>Boot the phone into fastboot mode</li>
+        <li>Connect your phone to the laptop via a USB-C cable. If you are having connectivity issues, refer to <b>Using windows VM instead</b> section.</li>
+        <li>Launch Mi Unlock</li>
+        <li>Login to MI Unlock, and Agree to the disclaimer.</li>
+        <li>Rapidly click through all the warnings and click the 'unlock' option.</li>
+</ol>
+</p>
+<p>And finally, the phone is unlocked!</p>
+<img src="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-23 10-47-53.png" alt="Phone Unlocked" width="750" height="450">
+
+
+<p>The process was so quick, I almost didn't believe it worked. My phone rebooted on its own so I speed ran through the android setup process. To confirm the unlock status, go to your settings, enable developer options, and under developer options, look for Mi Unlock Status, and it should say 'Unlocked'.
+</p>
+
+<h2>Setting up secondary bootloader.</h2>
+
+<p>Warning: Do not follow these instructions if postmarketOS installation process for your phone didn't mention a secondary bootloader.
+</p>
+
+<p>NOTICE: This section assumes a secondary bootloader is already setup from the <b>postmarketOS Setup</b> section.</p>
+
+<p>
+We already set up the Secondary bootloader, U-Boot in my case earlier in the <b>postmarketOS Setup</b> section. Make sure you follow the instructions on postmarketOS for the exact steps for your phone. Here are the steps I followed:
+
+
+<ol>
+<li>Boot your phone into fastboot mode.</li>
+<li>Connect your phone to your laptop via USB-C.</li>
+<li>Open your terminal and browse to the directory containing the U-Boot image.</li>
+<li>Run <code>fastboot erase dtbo</code>.</li>
+<li>Run <code>fastboot flash boot u-boot-sm7150-[vendor]-[device].img</code>. Or in my case, <code>fastboot flash boot u-boot-sm7150-xiaomi-sweet.img</code></li>
+
+</ol>
+    </p>
+
+    <h2 Flashing postmarketOS></h2>
+    <p>
+        Notice: This section assumes the <code>pmbootstrap init</code> and <code>pmbootstrap install</code> have already been completed in the <b>postmarketOS Setup</b> section.
+    </p>
+
+    <p>Hit the iron when it's still hot! Don't boot out of the fastboot mode after setting up the secondary bootloader. Follow these steps:</p>
+    <ol>
+        <li>Browse to the pmbootstrap directory.  </li>
+        <li>Run <code> pmbootstrap flasher flash_rootfs</code>.</li>
+        <li>Reboot the phone.</li>
+    </ol>
+
+    <img src="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-23 11-12-11.png" alt="Flashing postmarketOS" width="750" height="450">
+
+<h2>After flashing</h2>
+<p>Now you should see the phone booting postmarketOS. Just login with the password you set during <code>pmbootstrap install</code> and you should be good to go.</p>
+<p>Congratulations!</p>
+<p>Bye Bye Now.</p>
+
+<br>
+<img src ="../../Images/RepurposingMyOldPhone/PMOSLogo.jpg" alt="PMOSLogo" width="200" height="400">
+<img src="../../Images/RepurposingMyOldPhone/FirstLogin.jpg" alt="First Login Prompt" width ="188" height ="400">
+<h2>Why are you still here?</h2>
+
+<p>What happened? Oh! the keyboard didn't show! Ok, the same thing happened to me. Amidst cussing out the postmarketOS people, I thought that maybe they had already thought about this. Turns out, they did! </p>
+<img src="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-23 12-25-33.png" alt="postmarketOS after install instructions" width="750" height="450">
+
+
+
+<p>This page mentions that all devices will have the static address of <em>172.16.42.1/24</em>, so you can plug the phone in using usb cable and run <code>ssh user@172.16.42.1</code> from your terminal and using the username and password, you can login to the phone, and setup everything. If this works for you, you can go ahead and play around, but unfortunately, like LITERALLY EVERYTHING ELSE, it didn't work for me.
+</p><p>
+So I was left with my phone running Linux and with no way to talk to it. I tried SSH, didn't work, I tried <code>adb devices</code> in hopes that I can use the keyboard from my laptop and that didn't work either. All of this indicated that the phone should already have something running that lets me interact with it. This means making a new image with the appropriate changes.
+</p>
+
+<p> I ran <code>pmbootstrap zap</code> to get rid of the old files. I was aware that <code>pmbootstrap init</code> lets me add additional packages, and I just have to read carefully this time and add an interface in the flash image that makes the phone intractable.  Carefully navigating through the initialization process, I was prompted to select among 'Available user interfaces', and I selected "buffyboard: Plain framebuffer console with modern touchscreen keyboard support". Select all the other options same as before, run pmbootstrap install, and flash the image again.
+</p>
+<img src="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-23 11-29-43.png" alt="buffyboard" width="750" height="450">
+
+<p>
+Now when you boot the phone up this time, the keyboard will still not show. But relax, the keyboard is still there, you just can't see it. On the lower half of your phone, do multiple taps and you will uncover the keyboard, a small LED block at a time. Now you can finally, actually login for real!
+</p>
+
+<img src="../../Images/RepurposingMyOldPhone/BuffyboardEnabled.jpg" alt="BuffyBoard Enabled" width ="200" height="="400">
+
+<p>EXCITING!!
+</p>
+<p>
+Now with the phone unlocked and services hopefully initialized, try running <code>ssh user@172.16.42.1</code> from your laptop with phone connected via USB. If this works for you, you can go ahead and play around, but unfortunately, like LITERALLY EVERYTHING ELSE, it didn't work for me.
+</p>
+
+<p>
+
+    But it's okay. Turns out, nmcli was installed with the OS. So, on the buffyboard, you can type <code>sudo nmcli device wifi connect 'yourWiFiSSID' password 'yourWifiPassword'</code> to connect your phone to the WiFi. When the connection is successful, run <code>ip addr</code> to see the IP address your phone obtained. Now from the terminal, you can run <code>ssh user@yourPhone'sIPAddress</code>, and you should be finally able to login and access your phone from your laptop.
+</p>
+
+<img src="../../Images/RepurposingMyOldPhone/nmcli.jpg" alt="Logging With nmcli" width="512" height="236">
+<p>
+If your problem goes beyond all this, your luck might be worse than mine, which would make me genuinely jealous. I suggest making a doctor's appointment right away (Please do your own research. It is highly unlikely that you are completely locked out).
+</p>
+
+<h2> Recovery</h2>
+<p>If anything goes wrong during the flashing process, you might have to revert back to android. Please refer to <b>Recovery Procedure</b> and flash the android image before thinking very deeply about if you want to come back and flash Linux again.
+</p>
+
+<h2> Final checks</h2>
+<p>I said that the project will be considered successful if the phone can boot up and host Linux operating system with at least, Storage and WiFi working. Until now, we have verified that the phone can boot, host Linux, and connect to WiFi. Let's verify storage. To do this, you can just run <code>df -h</code> from the ssh connection to the phone.
+</p>
+<img src="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-23 13-13-18.png" alt="Storage Working" width="750" height="450">
+
+<p>And as we can see, storage does work. The intended minimum objectives do work, so this project is considered successful.</p>
+
+<h2>Advancing</h2>
+<p>If you want to put this phone to use by turning it into a server, visit the following documents to get started.</p>
+<ul>
+<li>To turn the phone into a server, refer to <a href="../SupportingDocuments/buildingAServer.html">Building a server</a></li>
+<li>To avoid turning your server OUR server, refer to <a href="../Projects/hardeningTheServer.html">Security Hardening and Assessment of a Self-Hosted ARM Alpine Linux Web Server</a></li>
+<li>To get help building a website, refer to <a href="../SupportingDocuments/myWebsite.html">My Website Initial Configuration</a></li>
+<li>To configure your domain and DNS, refer to <a href="../SupportingDocuments/domainRegistrationAndDNSConfiguration.html">Domain Registration and DNS configuration</a></li>
+</ul>
+
+
+
+<h2>BONUS PROBLEM</h2>
+
+<p>Remember when my phone's battery feature was under listed under 'partial' working condition? Yeah I figured out what it meant. It meant that you couldn't charge your phone. AT ALL. So you might think that battery bypass would work? Nope! absolutely not.
+</p>
+
+<p>So once you install Linux, your phone will keep discharging until it dies. I suspected it might still charge while powered off if some of the original firmware was still present, but nope! doesn't charge.
+
+</p>
+
+<p>But it isn't the first problem they've thrown my way since I started this life. I don't think it's impossible to fix either. Worst case scenario, we might have to turn into an embedded systems engineer, discover a hardware bring up while racing the discharging battery. Remember, if you find the solution after the phone dies, too late!
+
+</p>
+<img src="../../Images/RepurposingMyOldPhone/Screenshot From 2026-07-23 13-23-16.png" alt="Current Battery Status" width="750" height="450">
+<p>Look at me, I'm racing the battery at 61%. I have plugged in the charger but notice the status 'discharging', and online '0'. It means the phone doesn't detect a charger and it is discharging. My built in UPS turned out to be a built in countdown timer.
+
+</p>
+
+<p>thump... thump... thump...thump... thump... (That your heartbeat, buddy?)</p>
+
+<p>If I scared you, kudos to me and check out: How I fixed battery not charging problem at <a href="../SupportingDocuments/fixingUSBChargingByEditingTheDeviceTree.html">Fixing USB Charging By Modifying Device Tree</a>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    </body>
+</html>

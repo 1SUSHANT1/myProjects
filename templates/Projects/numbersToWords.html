@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Numbers Converter</title>
+</head>
+<body>
+    <h1> Numbers to Words Converter</h1>
+    <h2>Project Status: Partly Complete, Awaiting added functionality.</h2>
+
+    <p>One fine evening, I was doomscrolling on tiktok like every responsible teenager should. Then I came across a reel that said "You're a computer science student but you can't even write this code".
+        The girl was talking about a code that converts numbers to words. I got <a href="https://tenor.com/view/mad-gif-17291530843075000352">real mad</a> at this girl. It wasn't even what she said, it was the way she said it.
+        So I got up and with my newfound motivation, began writing the code. Took me that night but I did write it without any help. But sadly, I couldn't find the tiktok reel again and I wasn't avenged.
+    </p>
+
+    <p> Anyway, I wrote the code on C++ and I don't want to adapt it in Java. So, I am running the code on a backend server which will take your input and convert it to words or vice versa, and return the output.</p>
+    <p> The code is the very first draft, so please feel free to judge my coding skills. I was just trying to prove a point. But it does work.</p>
+
+
+
+    <p>Enter numbers to convert to word: </p>
+<input id = "number">
+
+<button onclick="convert()">Convert</button>
+<br><br>
+
+<b><div id="result"></div></b>
+
+<br>
+
+
+<script>
+
+function convert(){
+
+    let input = document.getElementById("number").value;
+
+
+    fetch("/run", {
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body: JSON.stringify({
+            input: input
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+
+        document.getElementById("result").innerHTML =
+        data.output;
+
+    });
+
+}
+
+const box = document.getElementById("number");
+
+box.addEventListener("keydown", function(event) {
+    if (event.key === "Enter") {
+        convert();
+    }
+});
+
+</script>
+
+<p>The code went under a little modification to make it work directly on the CLI. I will also add words to numbers feature eventually.</p>
+
+<p>README</p>
+<p>Here is how the code works.</p>
+
+<p>English number system is quite easy. You can break a number in segment of 3 digits from the right and move on to the left and each section will be hundred, hundred thousand, hundred million... from right to left.
+    My code handles numbers upto a trillion but can be easily modified to manage even bigger numbers.
+</p>
+<p> After understanding the segments, notice in the number system, 21 is twenty one, 31 is thirty one, but 11 isn't onety one. This means, we have to implement a specific case to handle numbers
+    from 10-19.
+</p>
+
+<p>With that understanding, let's look at the code. This code is basically a table, and it's just a matter of finding the right value on the table.</p>
+
+Words are stored in an array(which follows a standard), so if we traverse the array with the appropriate index, we will find the word equivalent of the number. Or to do the opposite, we can traverse the array with a word, and some calculation on the index will give us the number equivalent.
+
+ </p><p>So this puts us in a place where we can convert a word to a number.
+
+We also need to structure the words properly. This is done using the segment of 3 digits moving from right to left, inserting the correct word in the right place. After one segment is done, the code moves on to the next segment, does the same thing with the next segment and appends the previous segment to it.
+
+
+Doing this repeatedly converts the <a href="https://tenor.com/view/drake-notebook-gif-20708336">block of numbers into words.</a>
+<h2>Source Code:</h2>
+
+<a href="../../Scripts/NumbersToWords/NumbersToWords.cpp">ConverterSourceCode</a>
+
+
+
+</body>
+</html>
