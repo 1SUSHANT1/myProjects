@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Building a High-Availability (HA) Server Cluster</title>
+</head>
+<body>
+
+
+<h2>About</h2>
+<p>This is a project on building a standby server capable of monitoring and taking over production if the main server goes down, and capable of gracefully handing the responsibility back if the main server comes back. This project assumes that you have two web servers available. If you need help building a web server, do this <a href="https://www.sushantadk.com/SupportingDocuments/buildingAServer.html">Building an Always-On Web Server</a> twice and you've got two web servers.</p>
+
+<h2>Plan</h2>
+</p>The plan is very simple. On the backup server, we'll write a script like <em> if the main server goes down, take over</em>, and <em>if the main server comes back up, hand the responsibility back</em>. And on the main server, we'll write a script like <em>if you come back and see backup taking over production, shift the responsibility back to you</em>.</p>
+
+<h2>Real Plan</h2>
+</p>This is my most complex project yet. I have thought about this for about a year now and specifically for this project, I have NOT read anything about how high availability systems and how server clusters work. You read that correctly, I have NOT done any research on HA systems and server clusters. I do know the main idea, 'if one server goes down, another should take over with little or no downtime so to the client, it appears as if the problem never occurred.'</p>
+
+<p>Reason being, I can do it all by myself the way I want to. My methods might be inefficient, complicated, crude but I can reinvent the wheel. Multiple wheels for that matter. I will attempt to discover my version of the already established standard process and procedures. I will include a section at the end where I finally research the HA systems and server clusters and list the industry standards and processes I independently discovered. This project will follow 'necessity is the mother of invention' principle.</p>
+
+<h2>Approach</h2>
+The project will be split into three sections:
+<ol>
+<li>Production server and backup server in the same network and electric grid (my house).</li>
+<li>Production server and backup server in different network and electric grid.</li>
+<li>Automated to automatically adapt, negotiate and determine how to handle every situation.</li>
+</ol>
+
+</p>The second approach eliminates these failure points because network/electricity outage on the main server won't affect the backup server since it is on a different network and electric grid. But this approach adds complications because since the servers are in different networks, they have to communicate via the internet.</p>
+
+</p>The third approach is just a combination of first and second where everything is automated so the failover works as intended no matter where the main and backup servers are.</p>
+
+Every task will be completed individually, and later integrated to complete the project. This is because it is easier to keep track of ten little scripts than one giant one.</p>
+
+<h2>Preface</h2>
+</p>This project revolves around DNS because that's where the active standby server role is determined. In my configuration, the connections to my server can only made through Cloudflare using my domain name, and I can have the domain name pointing at one IP address at a time. So whichever IP address my DNS record points to is my active server. </p>
+
+</p>The switch is actually just changing the DNS record from active server to the standby server once the necessary conditions are met.</p>
+
+</p>Primarily, <em>rsync</em> will be used to create backups on the standby server to send incremental files avoiding frequent heavy traffic between my two little servers.</p>
+
+</p>Startup logic will be changed on both servers because once the server cluster is configured, no server should <em>willy nilly</em> take control over at startup. Instead, they will perform necessary checks and decide when to take over production.</p>
+
+</p>There's more but these are the ones that come to mind right now. Let's get to building! I am sure I will bump into whatever I am missing.</p>
+
+
+<h2>Both servers on the same network</h2>
+</p>This one is easier because since both servers are on the same network, the communication is simpler. We can also leave DNS out of this one, and we will use the router's port forwarding address to accomplish switch. We can just configure the backup server to set it's local IP address to the IP address of the dead main server so when the router forwards the traffic to the configured address the backup server gets the traffic.</p>
+
+<h3>Let's Start</h3>
+</p>Let's login to the backup server and write a script which checks if the online is active and if it can ping the main server.</p>
+
+
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-17 00-02-16.png" alt="" width="750" heigt="450">
+
+
+</p>You can see my bash script that I just wrote which uses <em>curl</em> to check if the website is online and <em>ping</em> to check if the server responds. I ran into couple problems: <em>curl</em> always returns offline and <em>ping</em> even though successful, doesn't exit and hangs. </p>
+
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-17 00-18-30.png" alt="" width="750" heigt="450">
+
+
+</p>I figured out the problems. My Cloudflare had <em>'bot fight mode'</em> enabled which was throwing curl off. I disabled it and <em>curl</em> could properly access my website. I also added a <code>ping -c 1</code> to my ping command which only pings once and exits.</p>
+
+</p>I also did case checks where if I stop Apache, <em>curl</em> detects website offline but <em>ping</em> is still successful, and if i turn the server off, the checks correctly identify website and server both are down.</p>
+
+<h3>First Crude Version</h3>
+</p>Let's configure the standby server to start the necessary services if either website or the server is down. I am aware that it is one of many cases but this is where we start.</p>
+
+</p>My backup server uses NGINX instead of Apache. It was configured to start NGINX and Gunicorn at boot. Let's undo that. Run <code>sudo systemctl disable nginx</code> and <code>sudo systemctl disable gunicorn</code>. </p>
+
+</p>Now let's update the script.</p>
+
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-17 00-37-07.png" alt="" width="750" heigt="450">
+
+
+</p>You can see that I added a boolean which starts true but is turned false if either website or server is down. After running the script, we can see that it correctly identifies if the server is down and it should start necessary services. </p>
+
+Let's add the logic start the necessary services in the script. Keep in mind, you have to run the script as root to execute <em>systemd</em> commands.</p>
+
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-17 00-47-20.png" alt="" width="750" heigt="450">
+
+
+
+</p>You can see that I added the logic to start NGINX and Gunicorn. When I stop Apache on my main server and run the script, you can see it correctly identifies that the website is down and starts NGINX and Gunicorn. NGINX and Gunicorn have already been configured to listen on the correct port and serve the website when I built this server.<p>
+
+</p>I will now manually initiate the failover. First, I will change my main server's IP address. I'll do this by adding a new IP address and removing the old one.</p>
+
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-17 01-01-00.png" alt="" width="750" heigt="450">
+
+
+</p>Now, the main server's IP address is <em>192.168.1.251</em>. But, the router is still port forwarding to <em>192.168.1.250</em>. Now if I change my backup server's IP address to <em>192.168.1.250</em>, it will get the traffic. Then I will run my script which detects that the server is down and starts NGINX and Gunicorn. Since NGINX is already configured to listen on port 80 and 443, it will get the web traffic and serve the website.</p>
+
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-17 01-17-21.png" alt="" width="750" heigt="450">
+
+
+</p>You can see I added the router's HTTP/HTTPS port forwarding address to the backup server, and when I ran the script, NGINX served the website. How do I know it's backup server's NGINX?</p>
+
+</p>Because currently, my website on my main server looks like this:</p>
+    
+</p>NGINX was serving my old website back from when I built the backup server. You can also see that I ran into a problem where I lost SSH access to my main server when I changed its IP address. I had to use my USB recovery method from <a href="https://www.sushantadk.com/Projects/hardeningTheServer.html">Security Hardening and Assessment of a Self-Hosted Server</a> to get back to my server, change IP address back to <em>192.168.1.250</em>, remove this IP address from the backup server so finally my main server would start hosting the website again.</p>
+
+</p>If you haven't fallen asleep until now, you must've realized that not only the backup server takeover is possible, we just did it. Yes it was messy and we did create bigger problems but what matters is that we did it. Now it is just a matter of managing this mess and automating it and we're golden!</p>
+
+</p><b>Unfortunately, this is where the project actually starts. All this didn't even scratch the surface of the true extent of this project.</b></p>
+
+
+
+
+
+
+
+
+
+</body>
+</html>

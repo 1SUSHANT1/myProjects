@@ -3,13 +3,214 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fixing Charging By modifying Device Tree</title>
+    <title>Fixing Charging By Modifying Device Tree and General Device Care</title>
 </head>
 <body>
-    <h1>Fixing Charging By modifying Device Tree</h1>
+    <h1>Fixing Charging By Modifying Device Tree</h1>
 
-<h2>Supporting document status: <b>In progress</b></h2>
+    <h2>Project Status: <b>Complete</b></h2>
 
-    
+    <h3>⚠️ Important: Embedded Systems Work</h3>
+    <p>While I successfully fixed the charging issue on my specific device, I am not an embedded systems expert. My knowledge beyond this exact modification is limited. Proceed with caution.</p>
+
+    <ul>
+        <li>I have already resolved the USB charging issue once. I will now recreate the environment to the state immediately after the initial OS flash, when charging was not working and document the full troubleshooting and resolution process.</li>
+        
+        <li>If your phone is the exact same model (Redmi Note 10 Pro), these steps should work for you. For other devices, you may need to adapt them.</li>
+        
+        <li>This was the most challenging part of the entire project. To prevent the battery from draining during research, I kept the phone powered off while studying device trees and charging hardware.</li>
+        
+        <li>
+            <strong>Recovery Procedure (Battery at ~3%):</strong><br>
+            I discovered that the underlying Qualcomm system prevents complete discharge. The phone shuts down at an actual 3% charge (shown as 0% in the status bar). My recovery procedure was:
+            <ol>
+                <li>As soon as the phone powers off, boot into <strong>fastboot mode</strong> (which works without full hardware initialization).</li>
+                <li>Flash the Android recovery image (created during the <a href="../Projects/repurposingMyOldPhone.html">Repurposing My Old Phone into an ARM Linux Web Server</a> project).</li>
+                <li>Charge the phone to 100% (Android's device tree handles charging correctly).</li>
+                <li>Re-flash Linux and attempt the fix again.</li>
+            </ol>
+        </li>
+        
+        <li>
+            <strong>⚠️ Complete Battery Drain (Emergency Recovery):</strong><br>
+            It <em>is</em> possible to fully drain the battery. I did this once by repeatedly running heavy tasks (decompiling, editing, compiling large DTS scripts, repeated reboots) combined with the phone's intermittent fluctuating battery readings. In that case, the phone wouldn't even boot into fastboot mode.
+            <br><br>
+            <strong>Recovery:</strong> On Qualcomm devices (and many IoT devices), when the battery is completely drained, charging is handled <em>purely through hardware</em>. Simply plug the phone into a good wall charger and wait. The underlying Qualcomm hardware brought my phone back to life.
+            <br><br>
+            <strong>Please do not let this happen to you</strong>. This may not work on all modern devices. I had a backup recovery plan (as a former electrician) involving removing the battery and charging it directly with a wall charger, but this is risky and likely won't work on modern enclosed batteries. It did not come to that.
+            <br><br>
+            <strong>Recommendation:</strong> If the battery drops below ~10%, boot into fastboot mode, flash Android, charge to 100%, and only then proceed with modifications.
+        </li>
+        
+        <li>
+            <strong>Quick Fix:</strong> If you're in a hurry, skip to the "Device Tree" section below. The last line in that section summarizes the actual fix.
+        </li>
+    </ul>
+
+    <h2>First Foothold</h2>
+
+    <p>Through online sources, I figured that components related to battery would likely include <em>power</em> in the file name. I started by scouting for files with "power" in the name. Run 
+<code>sudo find / -name '*power*'</code>
+    </p>
+
+
+<img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-12 15-27-35.png" alt="" width="750", height="450">
+
+<p>However, this produced far too many results, so I manually began noting directories that seemed promising. I concluded I would look into (in order from the find results):</p>
+
+<ul>
+    <li><em>/sys/power</em></li>
+    <li><em>/sys/class</em></li>
+    <li><em>/sys/devices</em></li>
+    <li><em>/sys/firmware</em></li>
+</ul>
+
+<p>First, let's look into <em>/sys/power</em>.</p>
+<img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-12 15-33-50.png" alt="" width="750", height="450">
+
+
+<p>As you can see, it has very general files like <em>autosleep</em>, <em>wakeup_count</em>, etc. Not what we are looking for.</p>
+
+<p>Next, <em>/sys/class</em>.</p>
+<img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-12 15-38-30.png" alt="" width="750", height="450">
+
+
+<p>This is promising. <em>/sys/class/power_supply</em> has files named <em>pm8150b-charger</em> and <em>qcom_qg</em>. 'pm' represents postmarketOS, and 'qcom' represents the hardware (Qualcomm). Let's inspect the files.</p>
+
+<img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-12 16-07-17.png" alt="" width="750", height="450">
+
+
+<p>You can see most of the files here are read-only, and some which are writable aren't useful right now. Still, it appears that we can see the battery capacity, charging status, etc., here. 
+    </p>
+
+<img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-12 16-18-35.png" alt="" width="750", height="450">
+
+
+
+<p>Even with the charger inserted in the phone, the phone shows "charger offline" and status "discharging."</p>
+
+<p>Another promising directory, <em>usb_power_directory</em> under <em>/sys/class</em>, was empty. Let's now inspect <em>/sys/class/usb_role/</em>.</p>
+
+<p>Next, the other two files I thought were promising, <em>/sys/devices</em> and <em>/sys/firmware</em>, also led nowhere. This is where I turned my phone off because clearly, my research wasn't enough.</p>
+
+<p>After further research, I learned about <strong>device trees</strong>. A device tree is the data structure that describes the physical hardware of a computer system. Let's turn the phone on and find this tree on my server. Run <code>find / -name '*dtb*'</code></p>
+
+
+
+<h2>Device Tree</h2>
+
+<p>I found the device tree for my phone.</p>
+
+<img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-12 16-22-16.png" alt="" width="750", height="450">
+
+
+
+
+<p>Even though there are multiple <em>.dtb</em> files, I know that the file I am interested in is <em>/boot/dtbs/qcom/sm7150-xiaomi-sweet.dtb</em> because my phone's codename is Xiaomi-Sweet. Let's open it. Run:  
+<code>nano /boot/dtbs/qcom/sm7150-xiaomi-sweet.dtb</code>
+</p>
+
+<img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-12 16-24-41.png" alt="" width="750", height="450">
+
+<p>What is this garbage? Oh wait! this is a compiled binary. We need to decompile it before we can properly read and modify it. Run: <em>Hey device tree copiler(DTC), take this device tree blob(DTB) as input and, and give me a human readable device tree source(DTS) as output in /tmp directory</em>. That didn't work. Maybe try: <code>dtc -I dtb -O dts -o /tmp/sweet.dts /boot/dtbs/qcom/sm7150-xiaomi-sweet.dtb</code>
+</p>
+<img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-12 16-26-43.png" alt="" width="750", height="450">
+
+
+<p>This converts the <em>.dtb</em> file to a human-readable <em>.dts</em> file and puts it in the <em>/tmp</em> directory.</p>
+
+<p>Let's open the new file with nano.</p>
+
+<img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-12 16-28-34.png" alt="" width="750", height="450">
+
+
+<p>Hmm, so what's the plan with these 5000 lines? Read it if you please, but I am going to search for different keywords until I find something I'm interested in. I searched for the keyword "usb" using <kbd>Ctrl+F</kbd> and <kbd>Ctrl+W</kbd> to find the next occurrence until I found what I think was the reason charging wasn't working.</p>
+
+<img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-12 16-46-13.png" alt="" width="750", height="450">
+
+
+<p>Notice the line <em>power-role = "source";</em>. I don't think my phone is supposed to be the source of power — it is supposed to be a <em>sink</em>. So, let's carefully change it to "sink".</p>
+
+<img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-12 16-50-57.png" alt="" width="750", height="450">
+
+
+<p>Let's compile it back to <em>.dtb</em> and put it back in the <em>/boot/dtbs</em> directory. Run: <code>dtc -I dts -O dtb -o /tmp/sweet.dtb /tmp/sweet.dts</code></p>
+<img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-12 16-53-38.png" alt="" width="750", height="450">
+<img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-12 16-54-15.png" alt="" width="750", height="450">
+
+
+<p>We can see, amidst the thousand warnings, the tree did compile back to <em>.dtb</em>. Success! (Not quite.)</p>
+
+<p>Let's put our newly compiled file back into the <em>/boot/dtbs/qcom</em> directory. Run: <code>cp /tmp/sweet.dtb /boot/dtbs/qcom/sm7150-xiaomi-sweet.dtb</code></p>
+<img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-12 16-56-40.png" alt="" width="750", height="450">
+
+
+<p>Hopefully, when we reboot, the device won't crash and the phone will switch its role from source to sink and start accepting charge.</p>
+
+<img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-12 17-01-09.png" alt="" width="750", height="450">
+
+
+<p><strong>It worked!</strong> FYI, it also works if you substitute "source" with "dual". Ask me how I know this.</p>
+
+<p><strong>PS:</strong> This is not all I did. I wish it was that easy, but this is the minimum number of steps you can take to actually know what you're doing and adapt if necessary.</p>
+
+<p><strong>Basically:</strong> decompile <em>/boot/dtbs/qcom/sm7150-xiaomi-sweet.dtb</em>, find the line <code>power-role = "source";</code>, change it to <code>power-role = "sink";</code>, compile it back, put the updated file back into <em>/boot/dtbs/qcom/sm7150-xiaomi-sweet.dtb</em>, and reboot.</p>
+
+
+<h2>Looking around</h2>
+
+
+<p>For my phone, PostmarketOS had listed battery feature under "partial". This meant battery wouldn't charge in the initial configuration. But even though we did fix it, it is a good idea to look around and gather as much information as possible about the battery status, health, and capabilities in case something else decides to go wrong.</p>
+
+<p>The files inside <em>/sys/class/power_supply/</em> contain useful information about the battery status, health, and capabilities. Let's take a look at <em>/sys/class/power_supply/pm8150b-charger</em>. It gives us information about the charger, it's status, the max current phone is allowed to draw, the actual current being drawn, and other relevant details.</p>
+
+<img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-15 03-54-12.png" alt="" width="750", height="450">
+
+
+<p>Charger status has four different modes:
+    <ul>
+        <li>Charging</li>
+        <li>Discharging</li>
+        <li>Not charging</li>
+        <li>Full</li>
+    </ul>
+</p>
+
+<p>Charging means battery is currently being charged. Discharging means battery is currently being used to power the device. Not charging means the battery is not drawing any power, and the phone is running with battery bypass using the charger. Full means the battery is fully charged.</p>
+
+<p>Next, let's look at <em>/sys/class/power_supply/qcom_qg</em>. This directory contains information about the battery itself, including its status, and uevent. The uevent file can be useful for debugging and monitoring purposes.</p>
+<img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-15 04-02-14.png" alt="" width="750", height="450">
+
+
+
+<h2>Battery Hysteresis</h2>
+<p>It is not a good idea to keep the battery at a high charge all the time. This can lead to faster battery degradation and reduced overall battery lifespan. To mitigate this, I scoured the device for any files that could be used to set a maximum charge threshold for the battery. Even though I can't say there doesn't exist one, I can say that after a very intensive search, I was unable to find it. But you know what I did find? The current_max file which specifies the maximum current the battery can draw is writeable.</p>
+
+<img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-15 04-27-39.png" alt="" width="750", height="450">
+
+<p>You can see the admin has write access to the current_max file. Let's echo some current amount into it and see if the actual current being drawn follows. (Please don't try too low or too high values. This is uncharted territory even for me.)</p>
+
+
+<img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-15 04-40-05.png" alt="" width="750", height="450">
+
+
+<p>You can see that when I echo 1000000, 1200000, 900000, 1700000 to <em>current_max, current_now</em>, reads 998485, 1197660, 897275, 1697555 respectively. This shows that the actual current being drawn closely follows the limits set in <em>current_max</em>. I used that to write a battery hysteresis script.</p>
+
+<img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-15 05-00-34.png" alt="" width="750", height="450">
+
+<p>This script lets the the battery draw a high current until it gets to 90% and then it echoes in a lower current until the battery drops below 50%, then it charges upto 90% again. I implemented this hysteresis because my first approach, where i disable charging over 90% led to very frequent toggling of the charging state. Basically, the charger would stop charging at 90% and start again at 89%, causing unnecessary wear and tear on the battery and the charging circuitry. </p>
+<p>Since this was a simple cron job, I took a help of an external file on which would control when the charging should be enabled or disabled. It works by echoing 0 when the level goes above 90% which tells my script to stop charging, and echoing 1 when the level goes below 50% which tells my script to resume charging.</p>
+
+<p><b>But!</b> the kernel takes over sometimes! Sometimes it rejects the written value and sets the current_max to 50000, which causes a slow battery drain and sometimes sets current_max to 0, where the phone enters battery bypass mode, effectively ignoring my script's settings and sustaining on just the charger. I have tried to figure out what exactly takes over and writes this value, so I can directly edit it so there would be only one script managing the charging process, but I haven't been able to pinpoint the exact mechanism or process responsible for it. It does appear that the kernel and my script working together won't let the phone die. I have noticed through my battery logs, the kernel lets my battery go below 50%, then raises the current_max to allow charging, and when it is comfortable, it releases the control so my script can resume managing the charging process. The only thing that I can say about this is that the kernel appears to be taking control of the charging behaviour randomly but this hasn't caused my phone to die or crash yet.</p>
+
+<h2>General Device care:</h2>
+<p>I am not sure why but my phone reboots when there is a sudden movement or shake. Even though a small action like plugging and unplugging the charger can trigger a reboot. I can confirm that when it was running Andriod, this issue did not occur, which makes me think it might be because of a problem with the current operating system. I'll let the developers work on it, but in the meanwhile, I have compensated to this issue by always leaving the charger plugged it, and putting it in a stand where I do not touch it. My battery hysteresis script doesn't let the battery sit at full charge all the time so this setup is working for me.</p>
+<p>I also have scripts which monitor the device's temperature, current_max and current_now values, battery level, charging status etc. I have configured my website's admin page to display these values in real-time, allowing me to keep an eye on the device's health and charging behavior at all times.</p>
+<p>You can tailor the caring steps custom to your device.</p>
+
+
+
+<h2>Conclusion:</h2>
+<p>In this project, we fixed the USB charging behavior of the device by editing the device tree to switch the device's power-role from source to sink. We looked around the files which would give us valuable information about the charging, charger, and battery. Finally, we wrote a battery hysteresis script to manage charging.</p>
 </body>
 </html>

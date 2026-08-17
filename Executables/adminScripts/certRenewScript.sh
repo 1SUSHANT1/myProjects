@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if openssl x509 -checkend 9592000 -noout -in /etc/letsencrypt/live/sushantadk.com/fullchain.pem
+if openssl x509 -checkend 2592000 -noout -in /etc/letsencrypt/live/sushantadk.com/fullchain.pem
 	then echo "Valid"
 
 else
