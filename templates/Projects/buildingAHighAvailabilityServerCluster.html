@@ -27,6 +27,8 @@ The project will be split into three sections:
 <li>Automated to automatically adapt, negotiate and determine how to handle every situation.</li>
 </ol>
 
+<p>The first approach has obvious failure points. If the main and backup servers are on the same network and connected to the same electrical grid, they share common points of failure. A network or power outage could take both servers down simultaneously.</p>
+
 </p>The second approach eliminates these failure points because network/electricity outage on the main server won't affect the backup server since it is on a different network and electric grid. But this approach adds complications because since the servers are in different networks, they have to communicate via the internet.</p>
 
 </p>The third approach is just a combination of first and second where everything is automated so the failover works as intended no matter where the main and backup servers are.</p>
@@ -34,7 +36,7 @@ The project will be split into three sections:
 Every task will be completed individually, and later integrated to complete the project. This is because it is easier to keep track of ten little scripts than one giant one.</p>
 
 <h2>Preface</h2>
-</p>This project revolves around DNS because that's where the active standby server role is determined. In my configuration, the connections to my server can only made through Cloudflare using my domain name, and I can have the domain name pointing at one IP address at a time. So whichever IP address my DNS record points to is my active server. </p>
+</p>This project revolves around DNS because that's where the active/standby server role is determined. In my configuration, the connections to my server can only made through Cloudflare using my domain name, and I can have the domain name pointing at one IP address at a time. So whichever IP address my DNS record points to is my active server. </p>
 
 </p>The switch is actually just changing the DNS record from active server to the standby server once the necessary conditions are met.</p>
 
@@ -62,7 +64,7 @@ Every task will be completed individually, and later integrated to complete the 
 
 </p>I figured out the problems. My Cloudflare had <em>'bot fight mode'</em> enabled which was throwing curl off. I disabled it and <em>curl</em> could properly access my website. I also added a <code>ping -c 1</code> to my ping command which only pings once and exits.</p>
 
-</p>I also did case checks where if I stop Apache, <em>curl</em> detects website offline but <em>ping</em> is still successful, and if i turn the server off, the checks correctly identify website and server both are down.</p>
+</p>I also did case checks where if I stop Apache on the main server, <em>curl</em> detects website offline but <em>ping</em> is still successful, and if i turn the server off, the checks correctly identify website and server both are down.</p>
 
 <h3>First Crude Version</h3>
 </p>Let's configure the standby server to start the necessary services if either website or the server is down. I am aware that it is one of many cases but this is where we start.</p>
@@ -84,31 +86,109 @@ Let's add the logic start the necessary services in the script. Keep in mind, yo
 
 </p>You can see that I added the logic to start NGINX and Gunicorn. When I stop Apache on my main server and run the script, you can see it correctly identifies that the website is down and starts NGINX and Gunicorn. NGINX and Gunicorn have already been configured to listen on the correct port and serve the website when I built this server.<p>
 
-</p>I will now manually initiate the failover. First, I will change my main server's IP address. I'll do this by adding a new IP address and removing the old one.</p>
+</p>I will now manually initiate the failover. First, I will change my main server's IP address. I'll do this by adding a new IP address and removing the old one. Run <code>ip addr add 192.168.1.251 dev wlan0</code> to add a new IP address and ,<code>ip addr del 192.168.1.250 dev wlan0</code> to delete the old one.</p>
 
 <img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-17 01-01-00.png" alt="" width="750" heigt="450">
 
 
-</p>Now, the main server's IP address is <em>192.168.1.251</em>. But, the router is still port forwarding to <em>192.168.1.250</em>. Now if I change my backup server's IP address to <em>192.168.1.250</em>, it will get the traffic. Then I will run my script which detects that the server is down and starts NGINX and Gunicorn. Since NGINX is already configured to listen on port 80 and 443, it will get the web traffic and serve the website.</p>
+</p>Now, the main server's IP address is <em>192.168.1.251</em>. But, the router is still port forwarding to <em>192.168.1.250</em>, so the main server is no longer receiving the internet traffic from the router. Now if I change my backup server's IP address to <em>192.168.1.250</em>, it will get that traffic. Then I will run my script which detects that the server is down and starts NGINX and Gunicorn. Since NGINX is already configured to listen on port 80 and 443, it will get the web traffic and serve the website.</p>
 
 <img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-17 01-17-21.png" alt="" width="750" heigt="450">
 
 
 </p>You can see I added the router's HTTP/HTTPS port forwarding address to the backup server, and when I ran the script, NGINX served the website. How do I know it's backup server's NGINX?</p>
 
-</p>Because currently, my website on my main server looks like this:</p>
+</p>Because currently, my website on the main server looks like this:</p>
     
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-17 01-23-07.png" alt="" width="750" heigt="450">
+
 </p>NGINX was serving my old website back from when I built the backup server. You can also see that I ran into a problem where I lost SSH access to my main server when I changed its IP address. I had to use my USB recovery method from <a href="https://www.sushantadk.com/Projects/hardeningTheServer.html">Security Hardening and Assessment of a Self-Hosted Server</a> to get back to my server, change IP address back to <em>192.168.1.250</em>, remove this IP address from the backup server so finally my main server would start hosting the website again.</p>
 
 </p>If you haven't fallen asleep until now, you must've realized that not only the backup server takeover is possible, we just did it. Yes it was messy and we did create bigger problems but what matters is that we did it. Now it is just a matter of managing this mess and automating it and we're golden!</p>
 
+</p>Moving on, I added the logic add the router's Port forwarding IP address(<em>192.168.1.250</em>) to the backup server if the main server goes down and if the number of services successfully started by the backup server is equal to the number of required services for regular operation. </p>
+
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-17 03-02-14.png" alt="" width="750" heigt="450">
+
+</p>Now this time, I will shut my main server down to avoid making the mess like last time and run this script. With the main server shut off, when I run the script, the necessary services should be initialized,  and the IP address should be added and my website should be hosted from my backup server. Let's try it.</p>
+
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-17 03-12-08.png" alt="" width="750" heigt="450">
+
+</p>You can see that on my backup server, I started with stopped NGINX, stopped Gunicorn, and only one IP address. When I shut my main server off and run my script, it successfully started NGINX and Gunicorn, added the port forwarding IP address, and began serving the website. Make sure you delete the IP address before turning the main server back on so there is no IP address conflict.</p>
+
+</p>Congratulations! You just made a 'kinda little bit working failover server cluster'.</p>
+
+
+
 </p><b>Unfortunately, this is where the project actually starts. All this didn't even scratch the surface of the true extent of this project.</b></p>
 
 
+<h3>Backup</h3>
+</p>Now to address the elephant in the room. Why is the backup server showing content from a week ago? That's because we haven't automated backup yet. Now this one is actually easy. I use <em>rsync</em> to send incremental file list which uploads new and edited files in the target server.</p>
+
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-17 04-28-03.png" alt="" width="750" heigt="450">
+
+</p>You can see I am using <em>rsync</em> to send incremental file list for directories: Images, Scripts, static, and templates and it is only sending the files that are new or updated.  Let's disconnect the main server from the network(alternative to shutting it down), and run the script we created to see if the backup server serves the updated website.</p>
+
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-17 04-52-42.png" alt="" width="750" heigt="450">
+
+</p>It should come to nobody's surprise that the backup server now served the updated webpage. Well, I did run into a 403 permissions error but quickly fixed it recursively with <em>chmod</em>. Maybe when <em>rsync</em> updates the files, it messes with the permissions somehow.  We'll eventually figure it out but let's create an automated backup cron job for now.</p>
+
+</p>Only except that <em>rsync</em> will ask for  a password and fail. We need to create a SSH key that enables us to log into the backup server without typing in the password every time.</p>  
+
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-17 13-39-45.png" alt="" width="750" heigt="450">
+
+</p>I know I should move away from <em>rsa</em> keys but what are you gonna do? old habits die hard. Let's  write a simple script that sends an incremental file list from <em>rsync</em> specifying the <em>rsa</em> key to the backup server.</p>
+
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-17 14-00-36.png" alt="" width="750" heigt="450">
+
+</p>You can see my script that transfers mission critical files to the backup server automatically and keeps logs. Also you might've noticed that my script ran without any errors. It might not mean anything to you but I break things so much that it's strange to me when things work out the first time. Let's add this script to cron to run every minute and watch the log. We'll correct the backup frequency later.</p>
+
+</p>Nope! I was right. Even tho it didn't throw an error, instead of creating backups on my backup server, it just created a directory on my main server and transferred files. Reason being I put <em>susie@192.168.1.248</em> as my target instead of <em>susie@192.168.1.248:/home/susie/myWebsite/</em>. Well, let's fix that and run it again.</p>
+
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-17 14-08-19.png" alt="" width="750" heigt="450">
+
+</p>Now this time you can see it actually created an incremental backup. Let's add it to cron now.</p>
+
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-17 14-19-46.png" alt="" width="750" heigt="450">
 
 
+</p>You can see my script is running into problems. I know the script is okay, it runs and does make backups. Maybe it is experiencing problems because it is being run as root. I wouldn't think this is a permissions issue for root. Let's manually run the script as root ad see what's up.</p>
+
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-17 14-24-20.png" alt="" width="750" heigt="450">
 
 
+</p>Ah! root had never connected to my backup server before, it has always been the user Gucci. You can see that when I added my backup server's fingerprint to root's known hosts, the backups running once every minute are successful now. Now you can change the backup frequency according to your needs. I'll set it to once every 30 mins. If you want to judge, go ahead but I'm real more than perfect.</p>
+
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-17 14-31-49.png" alt="" width="750" heigt="450">
+
+
+</p>Now that we got it working, let's make it secure. Did you notice that the <em>rsync</em> command doesn't  need root privileges to successfully execute? So instead of making root's crontab execute it, which would cause it to have elevated privileges, we can run it through a service user.</p>
+
+</p>Here are the steps I took:</p>
+
+
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-18 04-10-58.png" alt="" width="750" heigt="450">
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-18 04-11-06.png" alt="" width="750" heigt="450">
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-18 04-11-14.png" alt="" width="750" heigt="450">
+<img src ="../../Images/highAvailabilitySystem/Screenshot From 2026-08-18 04-38-57.png" alt="" width="750" heigt="450">
+
+<ol>
+<li><code>sudo adduser -S -D backupAdmin</code> to add a basic system user and <code>cat /etc/passwd | grep backupAdmin</code> to confirm that it was created</li>
+<li><code>sudo -u backupAdmin ssh-keygen -t rsa -b 4096</code> to create a key as the new user and configure it properly</li>
+<li><code>sudo -u backupAdmin bash -c "ssh-copy-id -i /home/backupAdmin/.ssh/key_backupServer.pub susie@192.168.1.248"</code> to copy the key into the backup server. We have to do it this way because the system user doesn't have shell access. </li>
+<li><code>sudo -i
+</code> to properly access the system user's directory</li>
+<li><code>cp /home/user/myWebsite/Executables/clusterAdmin/backupAdmin /home/backupAdmin/</code> to copy the backup script to the service user's directory. Then I used nano to edit the file to specify the service user's key and configured it to keep logs in the system user's directory.</li>
+<li><code>chmod 755 backupAdmin</code> to give the owner full access and <code>chown -R backupAdmin backupAdmin/</code> to recursively change the owner of every file and directory inside the <em>backupAdmin/</em> directory.</li>
+<li><code>sudo -u backupAdmin /home/backupAdmin/backupAdmin </code> to run the script as the system user and confirm that it worked.</li>
+<li><code>crontab -u backupAdmin -e</code> to access the system user's crontab and add the script which runs every minute. After confirming that it is correctly creating backups, I changed the frequency to run the script every 30 mins.</li>
+<li><code>crontab -e</code> to remove the job from root's crontab.</li>
+<li>Then I also added a log rotation which checks if the log file has exceeded ~10MB, in which case it renames the current log file to <em>rsyncBackupLog1.txt</em> (overwriting any existing rotated log) and starts a fresh new log file for subsequent backup entries. </li>
+</ol>
+
+
+</p>There isn't much to it for backup than this on this project. We will later have to also synchronize password hash for my admin page and secrets which will be used to modify the IP address on my DNS record but they come later. For current scope, the backup script is perfectly fine.</p>
 
 
 
