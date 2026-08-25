@@ -17,25 +17,122 @@
 
 <a href ="aboutServer.html">About</a>
 
-<h1> Projects</h1>
-<a href="Projects/repurposingMyOldPhone.html">Repurposing My Old Phone into an ARM Linux Web Server</a>
-<br><br>
-<a href="SupportingDocuments/buildingAServer.html">Building an Always-On Web Server</a>
-<br><br>
-<a href="Projects/hardeningTheServer.html">Security Hardening and Assessment of a Self-Hosted ARM Alpine Linux Web Server</a>
-<br><br>
-<a href="Projects/buildingAHighAvailabilityServerCluster.html">Building a High-Availability (HA) Server Cluster</a>
-<br><br>
-<a href="SupportingDocuments/fixingUSBChargingByEditingTheDeviceTree.html">Fixing USB Charging By Modifying Device Tree</a>
-<br><br>
-<a href="Projects/numbersToWords.html">Numbers to Words Converter </a>
-<br><br>
-<a href="Projects/sunnyland.html">Sunnyland, Unity based 2D platformer</a>
-<br><br>
-<a href="Projects/homeLab.html">Home Lab</a>
-<br><br>
-<a href = "Projects/embeddedLinuxPortingforAndroidHardware.html">Embedded Linux Porting for Android Hardware</a>
-<br><br>
+<h1>Projects</h1>
+
+<p>View: <button id="sortProjects">Progression</button></p>
+
+
+
+<style>
+.project {
+    margin-bottom: 20px;
+}
+</style>
+
+<div id="projectList">
+
+    <div class="project" data-progression="1" data-strength="3">
+        <a href="Projects/repurposingMyOldPhone.html">
+            Repurposing My Old Phone into an ARM Linux Web Server
+        </a>
+    </div>
+
+    <div class="project" data-progression="2" data-strength="4">
+        <a href="SupportingDocuments/fixingUSBChargingByEditingTheDeviceTree.html">
+            Fixing USB Charging By Modifying Device Tree
+        </a>
+    </div>
+
+<div class="project" data-progression="3" data-strength="5">
+        <a href="SupportingDocuments/buildingAServer.html">
+            Building an Always-On Web Server
+        </a>
+    </div>
+
+    <div class="project" data-progression="4" data-strength="2">
+        <a href="Projects/hardeningTheServer.html">
+            Security Hardening and Assessment of a Self-Hosted ARM Alpine Linux Web Server
+        </a>
+    </div>
+
+     <div class="project" data-progression="5" data-strength="1">
+        <a href="Projects/buildingAHighAvailabilityServerCluster.html">
+            Building a High-Availability (HA) Server Cluster
+        </a>
+    </div>
+
+      <div class="project" data-progression="6" data-strength="7">
+        <a href="Projects/numbersToWords.html">
+            Numbers to Words Converter
+        </a>
+    </div>
+
+    <div class="project" data-progression="7" data-strength="6">
+        <a href="Projects/sunnyland.html">
+            Sunnyland, Unity based 2D platformer
+        </a>
+    </div>
+
+    
+    <div class="project" data-progression="8" data-strength="8">
+        <a href="Projects/homeLab.html">
+            Home Lab
+        </a>
+    </div>
+
+    <div class="project" data-progression="9" data-strength="9">
+        <a href="Projects/embeddedLinuxPortingforAndroidHardware.html">
+            Embedded Linux Porting for Android Hardware
+        </a>
+    </div>
+
+    
+    
+
+
+   
+  
+
+</div>
+
+<script>
+const button = document.getElementById("sortProjects");
+const projectList = document.getElementById("projectList");
+
+let mode = "progression";
+
+button.addEventListener("click", function () {
+
+    mode = mode === "progression" ? "strength" : "progression";
+
+    const projects = Array.from(projectList.children);
+
+    projects.sort(function(a, b) {
+        return Number(a.dataset[mode]) - Number(b.dataset[mode]);
+    });
+
+    projects.forEach(function(project) {
+        projectList.appendChild(project);
+    });
+
+    button.textContent =
+        mode === "progression"
+        ? "Progression"
+        : "Technical Strength";
+});
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 <h1> Supporting Documents</h1>
@@ -91,12 +188,7 @@ box.addEventListener("keydown", function(event) {
     }
 });
 
-
-
 </script>
-
-
-
 
 
 <br><br>

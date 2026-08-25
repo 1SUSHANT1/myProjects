@@ -8,8 +8,8 @@
 <body>
     <h1>Building a Server</h1>
 
-<h2>Supporting document status: <b>In Progress</b></h2>
-
+<h2>Project Status: <b>Complete</b></h2>
+<p>Github: <a href="https://github.com/1SUSHANT1/server-setup-guide">https://github.com/1SUSHANT1/server-setup-guide</a></p>
 
 <h1>About</h1>
 <p>This is a project on building a server. This project assumes that you already have HTML files available for your website, and you have already purchased a domain name. If you need help, please visit <a href="../SupportingDocuments/myWebsite.html">My Website Initial Configuration</a>, and <a href="../SupportingDocuments/domainRegistrationAndDNSConfiguration.html">Domain Registration and DNS configuration.</a></p>
@@ -157,6 +157,9 @@ Once you are in the Port Forwarding settings, it'll let you add a rule. For the 
 
 
 <p>This was new to me but pointing the root directory to 'templates' directory made everything that was static work. I can see why it worked now, because the templates directory had index.html file and it contains locations for everything else. So, I could point NGINX to the templates directory, and the index.html file there would handle the routing. Learn something new everyday I guess! It might not be the same for you but just adding location blocks shouldn't be too difficult.</p>
+
+<p><em><b>Update:</b>The webpages weren't loading correctly because the index file was pointing to them. They were being served correctly because they were inside the root directory defined in NGINX. Things like images, and my scripts do requrire a location definiton in the NGINX configuration file since they are outside the root directory. I figured this out when my scripts didn't load. Guess you <b>Don't</b> learn something new everyday. Maybe sometimes old knowledge is better.</em></p>
+
 <p>We just made our website reachable from the internet! Some things might be missing but this is a good start. We'll fix them (you guessed it) in a bit.</p>
 
 <h2>Configuring HTTPS connection</h2>

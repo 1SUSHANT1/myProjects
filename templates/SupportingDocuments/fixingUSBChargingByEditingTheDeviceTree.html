@@ -8,6 +8,8 @@
 <body>
     <h1>Fixing Charging By Modifying Device Tree</h1>
 
+    <p>Github:<a href="https://github.com/1SUSHANT1/fixing-charging-modifying-DTB">https://github.com/1SUSHANT1/fixing-charging-modifying-DTB</a></p>
+
     <h2>Project Status: <b>Complete</b></h2>
 
     <h3>⚠️ Important: Embedded Systems Work</h3>
@@ -199,15 +201,14 @@
 <img src="../../Images/fixingUsbChargingbyModifyingDeviceTree/Screenshot From 2026-08-15 05-00-34.png" alt="" width="750", height="450">
 
 <p>This script lets the the battery draw a high current until it gets to 90% and then it echoes in a lower current until the battery drops below 50%, then it charges upto 90% again. I implemented this hysteresis because my first approach, where i disable charging over 90% led to very frequent toggling of the charging state. Basically, the charger would stop charging at 90% and start again at 89%, causing unnecessary wear and tear on the battery and the charging circuitry. </p>
-<p>Since this was a simple cron job, I took a help of an external file on which would control when the charging should be enabled or disabled. It works by echoing 0 when the level goes above 90% which tells my script to stop charging, and echoing 1 when the level goes below 50% which tells my script to resume charging.</p>
+<p>Since this would be just a simple cron job, I took a help of an external file on which would control when the charging should be enabled or disabled. It works by echoing 0 when the level goes above 90% which tells my script to stop charging, and echoing 1 when the level goes below 50% which tells my script to resume charging.</p>
 
-<p><b>But!</b> the kernel takes over sometimes! Sometimes it rejects the written value and sets the current_max to 50000, which causes a slow battery drain and sometimes sets current_max to 0, where the phone enters battery bypass mode, effectively ignoring my script's settings and sustaining on just the charger. I have tried to figure out what exactly takes over and writes this value, so I can directly edit it so there would be only one script managing the charging process, but I haven't been able to pinpoint the exact mechanism or process responsible for it. It does appear that the kernel and my script working together won't let the phone die. I have noticed through my battery logs, the kernel lets my battery go below 50%, then raises the current_max to allow charging, and when it is comfortable, it releases the control so my script can resume managing the charging process. The only thing that I can say about this is that the kernel appears to be taking control of the charging behaviour randomly but this hasn't caused my phone to die or crash yet.</p>
+<p><b>But!</b> the kernel takes over sometimes! Sometimes it rejects the written values on current_max and does its own thing, like setting the current_max to 50000, which causes a slow battery drain and sometimes setting the current_max to 0, where the phone enters battery bypass mode, effectively ignoring my script's settings and sustaining on just the charger. I have tried to figure out what exactly takes over and writes this value, so I can directly edit it so there would be only one script managing the charging process, but I haven't been able to pinpoint the exact mechanism or process responsible for it. It does appear that the kernel and my script working together won't let the phone die. I have noticed through my battery logs, the kernel lets my battery go below 50%, then raises the current_max to allow charging, and when it is comfortable, it releases the control so my script can resume managing the charging process. The only thing that I can say about this is that the kernel appears to be taking control of the charging behaviour randomly but this hasn't caused my phone to die or crash yet.</p>
 
 <h2>General Device care:</h2>
-<p>I am not sure why but my phone reboots when there is a sudden movement or shake. Even though a small action like plugging and unplugging the charger can trigger a reboot. I can confirm that when it was running Andriod, this issue did not occur, which makes me think it might be because of a problem with the current operating system. I'll let the developers work on it, but in the meanwhile, I have compensated to this issue by always leaving the charger plugged it, and putting it in a stand where I do not touch it. My battery hysteresis script doesn't let the battery sit at full charge all the time so this setup is working for me.</p>
+<p>I am not sure why but my phone reboots when there is a sudden movement or shake. Even though a small action like plugging and unplugging the charger can trigger a reboot. I can confirm that when it was running Andriod, this issue did not occur, which makes me think it might be because of a problem with the current operating system. I'll let the developers work on it, but in the meanwhile, I have compensated to this issue by always leaving the charger plugged in, and putting it in a stand where I do not touch it. My battery hysteresis script doesn't let the battery sit at full charge all the time so this setup is working for me.</p>
 <p>I also have scripts which monitor the device's temperature, current_max and current_now values, battery level, charging status etc. I have configured my website's admin page to display these values in real-time, allowing me to keep an eye on the device's health and charging behavior at all times.</p>
 <p>You can tailor the caring steps custom to your device.</p>
-
 
 
 <h2>Conclusion:</h2>
