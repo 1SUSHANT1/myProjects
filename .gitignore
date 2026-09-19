@@ -1,6 +1,5 @@
+/Logs/
+/admin/
+__pycache__/
 venv/
 *.log
-nohup.out
-Logs/
-__pycache__/
-

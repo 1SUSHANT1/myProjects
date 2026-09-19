@@ -1,0 +1,13 @@
+#!/bin/bash
+
+timestamp=$(date -Iseconds -d "@$(($(date +%s) + 120))")
+
+jq -n \
+--arg timestamp "$timestamp" \
+'{
+name: "sushant",
+status: "healthy",
+timestamp: $timestamp
+}' > state.json
+
+echo "Timestamped 2 mins into the future"

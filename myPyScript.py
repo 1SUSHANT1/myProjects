@@ -64,18 +64,12 @@ def admin(page):
         text=True
         )
 
-	chargerConfig=subprocess.run(
-	["./Executables/adminScripts/batteryController"],
-	capture_output=True,
-	text=True
-	)
 
 	return render_template(
 		"admin/"+page,
     		batteryPercentage=batteryPercentage.stdout.strip(),
 		chargingStatus=chargingStatus.stdout.strip(),
 		systemUpTime=systemUpTime.stdout.strip(),
-		chargerConfig=chargerConfig.stdout.strip(),
 	)
 
 

@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Building a High-Availability (HA) Server Cluster</title>
+
+    <link rel = "stylesheet" href="../../static/style.css"> 
+
 </head>
 <body>
         <h1>Building a High-Availability (HA) Server Cluster</h1>
@@ -1016,6 +1019,425 @@ Gucci@mysweetserver:/home/user/recovery_backup$
 <h3>Phase 1 Conclusion</h3>
 
 <p>And there you have it, ladies and gentlemen. This time, I'm not giving you a theory or a working mechanism. I give you <b>A Fully Functional, Live High Availability Server Cluster</b>, made from scratch with my own wheels, my own jugs, and my own rules, with maximum downtime of less than 2 minutes.</p>
+
+
+<h2>Reminiscing</h2>
+
+<p>It wasn't until I broke up with her that I realized just how much I had underestimated her. Wait... what? Let me try that again. It wasn't until I moved on to phase 2 that I realized just how much I had undermined Phase 1 and its design. Let me explain.</p>
+
+<p>What would happen if I didn't even build phase 2 and just move the backup server to the different network? It actually works! Remember that the backup server can take over whenever it detects the website is down? When the website is down, the backup server marks itself active, and runs the DDNS script which will update the DNS record on Cloudflare so all the website traffic for my domain will now be forwarded to my backup server.</p>
+
+<p><b>So, do we just mark the project complete now?</b></p>
+<p>No, we are not quite done yet. We will see trouble when the main server comes back. After it comes back, if it had rebooted, it won't find the <em>mystate</em> file or the backup server so it will just set itself active, and if it hadn't rebooted, it will retain it's active state. So we end up with a active/active situation. My <em>su-saw</em> mechanism solves this problem if both servers are on the local network but not when they are on different networks with changing IP addresses, difficult connection and whatnot.</p>
+
+<p>So the first thing we are doing for phase 2 is solving this active/active situation by storing the <em>mystate</em> file where both servers can reach.</p>
+
+<h2>Transition Phase</h2>
+
+
+</p>Now we have to prepare to move on to phase 2 where the main server and the backup server will be in different networks. </p>
+
+</p>First, let's take a look at the problems with the current implementation:</p>
+<ol>
+<li>It assumes that an unreachable server is a dead server. This is rarely a problem in a local implementation but once the servers move to different network and they have to communicate via the internet where the IP address of the servers can keep changing. In that case, unreachable server, cannot be assumed a dead server.</li>
+<li>Active/active or passive/passive situation. The <em>su-saw</em> mechanism works fine until one server can contact the other, and the <em>mystate</em> file being in the <em>/tmp</em> directory also helps but if a server experiences network down, <em>mystate</em> file on the server cannot be updated and upon recovery, we may have a situation where both servers claim to be in a same state. It's almost like we need a third server with a single <em>state</em> file to solve this. </li>
+<li>Health check on the main server is minimal. There could be a situation where the health checks do pass but the server can't actually serve the website. In this case, backup takes over, and the main server runs its health check, falsely concludes that it is healthy and asks for control back but doesn't serve the website. The health check should prove for certain that the server can serve the website.</li>
+<li>The scripts are incredibly messy. This is under my principle where I say "Let's make it work, we'll make it pretty later" and when it works, I say "It is working, why touch it?". But we are not doing that this time. At the minimum, addresses that are hard coded will be kept in a file and the script will be modified to read the addresses from the files instead of hard-coding them. This will make migration easier.</li>
+</ol>
+</p>
+<p>Then, let's take a look at some things that we actually don't have to do after moving the server to a different network.</p>
+
+<ol>
+<li>IP address switch. Yep! we don't have to switch the local IP address. This time, the <em>tap</em> is the address the DNS record points to. The IP address switch is done at DNS.</li>
+<li>ARP. Since we don't have to mess with the local IP address, we won't have to send ARP packets because the servers will only have a static IP.</li>
+</ol>
+
+</p>Not having to deal with these is not necessarily a good thing. In this case, it does mean that we have to substitute them with something far complex.</p>
+
+</p>
+<p>How will the phase 2 be approached after seeing the problems with phase 1:</p>
+
+<ol>
+<li>Unreachable server will not automatically be concluded as a dead server.</li>
+<li><em>state</em> file won't be kept in the servers.</li>
+<li>Health check will be definitive.</li>
+<li>Scripts will be modular and adaptable.</li>
+</ol>
+
+<p>Phase 2 plan:</p>
+
+<b>State</b>
+
+
+</p>I did say that an unreachable server doesn't mean a dead server and state files won't be kept in the servers, but how will it work then? With the current setup, the burden of proving if the website/main server is active/dead has fallen into the backup server with continuous monitoring. This time, we are putting the burden on the main server where it has to continuously prove that server is active and serving a website. </p>
+
+<p>HOW???</p>
+
+<p>Let's start with the location of <em>mystate</em> file. It will be kept on GitHub. Each server will create a report about it's state, encrypt it and put it on  GitHub. For instance, main server will encrypt a file like this and put it on GitHub:</p>
+<pre>
+<code>
+Current Time: 08-26-2026 00:08
+Server: Main
+Website Status: Active
+Valid until: 08-26-2026 00:10
+</code>
+</pre>
+<p></p>The backup server will periodically download this file, unencrypt it and read the situation. If this file has not been updated after the expiration, the backup server will take an action. Symmetric encryption will be used for ease of use.</p>
+
+<b>Health</b>
+<p>In addition to checking if services are active, the servers will be configured to serve the website on localhost and see if it works there. Only when the website is served correctly on the localhost, can a server conclude that it is healthy. I know this still isn't a 100% proof that the server is capable but I'm afraid this is the closest to 'perfect' we will go in this project.</p>
+
+<b>The Switch</b>
+
+<p>Router will be left with port forwarding enabled, and the servers will be left listening on the correct ports at all times. Additionally, the servers will be configured to only respond to requests from Cloudflare because of security issues with 'always listening' servers. The takeover happens with a DDNS script where if a server must enter takeover mode, it will update the DNS with its IP address and the traffic will now go to the server that is taking over.</p>
+
+<p>With a foundation we built in phase 1 and the plan we made after looking at the limitations of phase 1, I can tell that contrary to my previous belief, phase 2 will actually be 'easy?'. We'll find out soon. Let's get building!</p>
+
+<h2>Phase 2</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h3>State</h3>
+
+<p>Let's start with  the state file. I am implementing a method which eliminates the race condition where two servers might try to change the state file simultaneously. This method demands the hash of the file that is currently on GitHub, and only the server which can provide the hash of the current file can update the file. If another server tries to modify the file a second later, the hash will have been changed and the modification will fail. In which case, the server must wait, pass 
+checks and try to change again if necessary. Two words, Rest API (and the crowd goes wild!).</p>
+
+<b>Private GitHub Repo</b>
+<p>I trust everyone knows how to make a private GitHub Repository.  Log into your GitHub account, click on the green button that says "New", provide a repository name,  set visibility private, and click "Create repository."</p>
+
+<img src="../../Images/highAvailabilitySystem/Screenshot From 2026-09-10 11-48-45.png" alt="" width="750" height="450">
+
+
+<p>You see my repository name is <em>myState</em>. The repo being private does offer some protection but later, we'll also add encryption to make it more secure. 
+Then click on <em>creating a new file</em> and name the file <em>stateFile</em>. Alternatively, you can create a file and push it to GitHub.</p>
+
+<b>Personal Access Token</b>
+
+<p>To get the access token which will be used to create the files, go to <em>user navigation menu -> Credentials -> Fine-grained personal access tokens</em> and click on <em>Generate new token</em>. Give the token a name, and set the access only to the <em>myState</em> repository so this token can only be used for that repository. Set a comfortable expiration date, I am choosing <em>No expiration</em> even though it is not recommended because a token which can only access a private repo with encrypted contents seems like a very small threat to me. Then under permissions, Add read and write permissions to the <em>content</em> option. Then Generate token. Copy the token immediately because you can't retrieve it once the page reloads. Or just never reload the page. Smart.</p>
+
+ <b>Using the token to upload and download GitHub content</b>
+
+<p>Next, just write the script that can upload and download the files to and from GitHub. Easy Peasy. But HOW? Like I once said, "should you find yourself in uncharted territory, you should open the documentation". Doesn't rhyme but it's the information that counts. https://docs.github.com/en/rest/repos/contents?apiVersion=2026-03-10 . This GitHub documentation has everything I need. If you want to hunt on your own, just find the documentation which has GET and PUT instructions to upload and download the file. Let's start scripting.</p>
+
+<b>Scripting</b>
+
+<p>I would want to get started by putting something on GitHub first, but to complete the <em>PUT</em> action, we need to <em>GET</em> the <em>SHA</em> hash first. So let's try to adapt the provided <em>GET</em> template to get the hash. I will take the provided template and adapt it as following:</p>
+
+
+<pre>
+
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ touch stateFileGitHub
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ nano stateFileGitHub 
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ echo "straight up GitHub template"
+straight up GitHub template
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ cat stateFileGitHub 
+curl -L \
+  -H "Accept: application/vnd.github.object" \
+  -H "Authorization: Bearer <YOUR-TOKEN>" \
+  -H "X-GitHub-Api-Version: 2026-03-10" \
+  https://api.github.com/repos/OWNER/REPO/contents/PATH
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ sudo chmod +x stateFileGitHub 
+[sudo: authenticate] Password: 
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ echo "Modified GitHub template"
+Modified GitHub template
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ cat stateFileGitHub 
+#!/bin/bash
+
+token=$(cat ../../../secrets/stateToken.txt)
+
+sha=$(curl -L \
+  -H "Accept: application/vnd.github.object" \
+  -H "Authorization: Bearer $token" \
+  -H "X-GitHub-Api-Version: 2026-03-10" \
+  https://api.github.com/repos/1SUSHANT1/myState/contents/myState.json)
+
+echo "$sha"
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ ./stateFileGitHub 
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+100    902 100    902   0      0   3805      0                              0
+{
+  "name": "myState.json",
+  "path": "myState.json",
+  "sha": "9dafe9be2099a3b02b618c673bcf865a1ffb4f9d",
+  "size": 8,
+  "url": "https://api.github.com/repos/1SUSHANT1/myState/contents/myState.json?ref=main",
+  "html_url": "https://github.com/1SUSHANT1/myState/blob/main/myState.json",
+  "git_url": "https://api.github.com/repos/1SUSHANT1/myState/git/blobs/9dafe9be2099a3b02b618c673bcf865a1ffb4f9d",
+  "download_url": "https://raw.githubusercontent.com/1SUSHANT1/myState/main/myState.json?token=A4X6AKUXUO5LO7SE5GAWFQDKULOFTAA",
+  "type": "file",
+  "content": "bm90aGluZwo=\n",
+  "encoding": "base64",
+  "_links": {
+    "self": "https://api.github.com/repos/1SUSHANT1/myState/contents/myState.json?ref=main",
+    "git": "https://api.github.com/repos/1SUSHANT1/myState/git/blobs/9dafe9be2099a3b02b618c673bcf865a1ffb4f9d",
+    "html": "https://github.com/1SUSHANT1/myState/blob/main/myState.json"
+  }
+}
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ 
+</cp>
+</pre>
+
+<p>You can see that with my minimal modification, I can access and get the file contents including the <em>SHA</em> hash.  Now, we can use <em>jq</em> to easily parse the hash. Just pipe the GitHub response to <em>jq</em> and extract <em>.sha</em>.</p>
+<pre>
+<code>
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ cat stateFileGitHub 
+#!/bin/bash
+
+token=$(cat ../../../secrets/stateToken.txt)
+
+sha=$(curl -L \
+  -H "Accept: application/vnd.github.object" \
+  -H "Authorization: Bearer $token" \
+  -H "X-GitHub-Api-Version: 2026-03-10" \
+  https://api.github.com/repos/1SUSHANT1/myState/contents/myState.json | jq -r '.sha')
+
+echo "SHA: $sha"
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ ./stateFileGitHub 
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+100    902 100    902   0      0   4389      0                              0
+SHA: 9dafe9be2099a3b02b618c673bcf865a1ffb4f9d
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$
+</code>
+</pre>
+<p>Now that we have the hash, we can try to upload something on GitHub. For this, I will just take the provided <em>PUT</em> template, and modify it to make it work for me.</p>
+
+<pre>
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ ./stateFileGitHub 
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+100    902 100    902   0      0   4831      0                              0
+SHA: 9dafe9be2099a3b02b618c673bcf865a1ffb4f9d
+{
+  "message": "content is not valid Base64",
+  "documentation_url": "https://docs.github.com/rest/repos/contents#create-or-update-file-contents",
+  "status": "422"
+}
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ touch state.json
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ nano state.json
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ cat state.json 
+{
+"name": "sushant",
+"status": "healthy"
+}
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ nano stateFileGitHub 
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ tail -13 stateFileGitHub 
+content=$(base64 -w 0 &lt; state.json)
+
+curl -L \
+  -X PUT \
+  -H "Accept: application/vnd.github+json" \
+  -H "Authorization: Bearer $token" \
+  -H "X-GitHub-Api-Version: 2026-03-10" \
+  https://api.github.com/repos/1SUSHANT1/myState/contents/myState.json \
+  -d @- << EOF
+{"message":"my commit message",
+"sha":"$sha",
+"content":"$content"}
+EOF
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ ./stateFileGitHub 
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+100    951 100    951   0      0   4014      0                              0
+SHA: b27ea32dc3b3f5ed2d168b62c0eff5d1a75443fa
+{
+  "content": {
+    "name": "myState.json",
+    "path": "myState.json",
+    "sha": "b27ea32dc3b3f5ed2d168b62c0eff5d1a75443fa",
+-------------snip---------------------------
+      "payload": null,
+      "verified_at": null
+    }
+  }
+}
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$
+</pre>
+<p>The base64 encoding did give me some problems but I fixed them and here we are, the script returns success.  Let's check GitHub to see if the file actually uploaded.</p>
+
+<img src="../../Images/highAvailabilitySystem/Screenshot From 2026-09-10 12-59-50.png" alt="" width="750" height="450">
+
+<p>Yay! It actually did! Now we just:</p>
+<ul>
+<li>Make the active server write the state file,</li>
+<li>Encrypt and upload it to GitHub,</li>
+<li>Have the backup server download the file, </li>
+<li>Decrypt it, parse the content,</li>
+<li>Take a necessary action,</li>
+<li>Automate this</li>
+</ul>
+Then we should be through with the <b>State</b> section. Easy Peasy.
+
+<b>State File Expiration</b>
+
+The way I am doing this is by making the expiration longer than the upload frequency. For instance, let's say I upload the file with timestamp which signals the file is still valid for the next 2 minutes. But the server will upload the file every 30s. So even if the main server somehow misses 3 uploads, if it can make a successful 4th upload at the 2 min mark, the file will keep being valid and the backup server won't take over. These are just random numbers for now which will be tested and tuned later. Here is the timestamp logic:
+
+<pre>
+<code>
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ cat state.json 
+{
+name: "sushant",
+status: "healthy",
+timestamp: "timestamp"
+}
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ touch updateJson
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ nano updateJson 
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ sudo chmod +x updateJson 
+[sudo: authenticate] Password: 
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ cat updateJson 
+#!/bin/bash
+
+timestamp=$(date -Iseconds -d "@$(($(date +%s) + 120))")
+
+jq -n \
+--arg timestamp "$timestamp" \
+'{
+name: "sushant",
+status: "healthy",
+timestamp: $timestamp
+}' > state.json
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ ./updateJson 
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ cat state.json 
+{
+  "name": "sushant",
+  "status": "healthy",
+  "timestamp": "2026-09-10T13:23:58-04:00"
+}
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ 
+</code>
+</pre>
+<p>I added a timestamp field on the <em>state</em> file and created another script, <em>updateJson</em> which updates the timestamp on the <em>state</em> file so the <em>stateFileGitHub</em> can upload the file with updated timestamp.</p>
+
+<p>It should come to nobody's surprise that the file is being correctly updated on GitHub.</p>
+
+<b>Backup Server getting and parsing the file from GitHub</b>
+
+<p>I wrote two scripts for the backup server. <em>stateFileCheck</em> downloads the file that was uploaded by the main server, and stores the timestamp in <em>timestamp.txt</em> file. This script was mainly copy/paste from the main server with a tiny modification to pipe the response to extract the content and pipe it again to decode it. 
+<em>checkValidity</em> checks if the timestamp on the file has expired or not. They go like this:</p>
+<pre>
+<code>
+susie@mysaltyserver:~/myWebsite/Executables/ClusterAdmin$ cat stateFileCheck 
+#!/bin/bash
+
+token=$(cat ../../../secrets/stateToken.txt)
+
+response=$(curl -L \
+-H "Accept: application/vnd.github.object" \
+-H "Authorization: Bearer $token" \
+-H "X-GitHub-Api-Version: 2026-03-10" \
+ https://api.github.com/repos/1SUSHANT1/myState/contents/myState.json | jq -r '.content' | base64 -d | jq -r '.timestamp' > timestamp.txt  )
+
+echo "$response"
+susie@mysaltyserver:~/myWebsite/Executables/ClusterAdmin$ cat checkValidity 
+timestamp=$(cat timestamp.txt)
+timestamp_epoch=$(date -d "$timestamp" +%s)
+now_epoch=$(date +%s)
+
+if [ "$timestamp_epoch" -gt "$now_epoch" ]; then
+	echo "Timestamp is in the future"
+else
+	echo "Timestamp has expired"
+fi
+susie@mysaltyserver:~/myWebsite/Executables/ClusterAdmin$ 
+</code>
+</pre>
+
+<p>Let's orchestrate the process. The work flow is:</p>
+
+<ul>
+<li>run <em>updateJson</em> script on the main server which updates the timestamp.</li>
+<li>run <em>stateFileGitHub</em> script which will upload the file on GitHub which should be valid for roughly 2 minutes.</li>
+<li>run <em>stateFileCheck</em> on the backup server which will get the timestamp.</li>
+<li>run <em>checkValidity</em> on the backup server which checks if the timestamp is still valid or expired.</li>
+</ul>
+<b>Case 1: Timestamp is still valid</b>
+
+
+Main Server:
+<pre>
+<code>
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ ./updateJson 
+Timestamped 2 mins into the future
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ ./stateFileGitHub 
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+100   1019 100   1019   0      0   4520      0                              0
+SHA: d1415c8b3126f00d0340f6c2bcb3e8dd51d4c033
+{
+  "content": {
+    "name": "myState.json",
+    -------------------------------------snip----------------------
+      "verified_at": null
+    }
+  }
+}
+Gucci@mysweetserver:/home/user/myWebsite/Executables/ClusterAdmin$ 
+</code>
+</pre>
+Backup Server:
+<pre>
+<code>
+susie@mysaltyserver:~/myWebsite/Executables/ClusterAdmin$ ls
+checkValidity  stateFileCheck  timestamp.txt
+susie@mysaltyserver:~/myWebsite/Executables/ClusterAdmin$ ./stateFileCheck 
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  1019  100  1019    0     0   3398      0 --:--:-- --:--:-- --:--:--  3408
+
+susie@mysaltyserver:~/myWebsite/Executables/ClusterAdmin$ ./checkValidity 
+Timestamp is in the future
+susie@mysaltyserver:~/myWebsite/Executables/ClusterAdmin$ 
+</code>
+</pre>
+
+<b>Case 2: Timestamp Expired</b>
+<p>Building on top of the previous check but running <em>checkValidity</em> after the timestamp has expired.</p>
+
+Backup Server:
+<pre>
+<code>
+susie@mysaltyserver:~/myWebsite/Executables/ClusterAdmin$ ./checkValidity 
+Timestamp has expired
+susie@mysaltyserver:~/myWebsite/Executables/ClusterAdmin$ 
+</code>
+</pre>
+
+<p>Once again, If you haven't fallen asleep until now, you must've realized that the GitHub state file thingy is not just my dream, it is real and we just did it.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 </body>

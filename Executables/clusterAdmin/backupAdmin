@@ -1,8 +1,0 @@
-#!/bin/bash
-
-
-if rsync -av -e "ssh -i /home/backupAdmin/.ssh/backupUserkey.pub" /home/user/myWebsite/Images /home/user/myWebsite/Scripts /home/user/myWebsite/static /home/user/myWebsite/templates susie@192.168.1.248:/home/susie/myWebsite/; then
-	echo "$(date +%H:%M:%S) __ Backup successful." >> /home/user/myWebsite/Logs/rsyncBackupLog.txt
-else
-	echo "$(date +%H:%M:%S) __ Backup experienced problems." >> /home/user/myWebsite/Logs/rsyncBackupLog.txt
-fi

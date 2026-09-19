@@ -1,0 +1,25 @@
+#!/bin/bash
+
+token=$(cat ../../../secrets/stateToken.txt)
+
+sha=$(curl -L \
+  -H "Accept: application/vnd.github.object" \
+  -H "Authorization: Bearer $token" \
+  -H "X-GitHub-Api-Version: 2026-03-10" \
+  https://api.github.com/repos/1SUSHANT1/myState/contents/myState.json | jq -r '.sha')
+
+echo "SHA: $sha"
+
+content=$(base64 -w 0 < state.json)
+
+curl -L \
+  -X PUT \
+  -H "Accept: application/vnd.github+json" \
+  -H "Authorization: Bearer $token" \
+  -H "X-GitHub-Api-Version: 2026-03-10" \
+  https://api.github.com/repos/1SUSHANT1/myState/contents/myState.json \
+  -d @- << EOF
+{"message":"my commit message",
+"sha":"$sha",
+"content":"$content"}
+EOF

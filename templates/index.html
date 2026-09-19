@@ -3,200 +3,914 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sushant Adk</title>
-    <link rel="icon" href="../static/Images/favicon.ico">
+    <title>Sushant's Website</title>
+
+<style>
+
+
+/*==================================Project Cards========================================*/
+    /*Project card. It controls every project card*/
+    .project-card{
+        background: white;
+        padding: 20px;
+        margin-top: 20px;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.07);
+
+    
+        transition:
+            transform 0.2s ease,
+            box-shadow 0.2s ease;
+
+        text-decoration: none;
+        color: inherit;
+    
+        display: flex;
+        flex-direction: column;
+    }
+
+    /*Gets rid of the default space, and leaves some space before the description*/
+    .project-card h3{
+        font-size:1.3rem;
+        margin-top: 0;
+        margin-bottom: 10px;
+    }
+
+    .project-card p{
+        color: #6b7280;
+        margin-bottom: 15px;
+    }
+
+    .project-card a{
+        color: #2563eb;
+        font-weight: bold;
+        text-decoration: none;
+    }
+    .project-card:hover{
+        transform: translateY(-5px);
+    }
+
+    .project-card a:hover{
+        text-decoration: underline;
+    }
+    /*Cpntrol image area at the top of the cards*/
+
+/*=================================Project Image=========================================*/
+
+    .project-image {
+    width: calc(100% + 40px);
+    height: 180px;
+    margin: -20px -20px 20px -20px;
+    padding: 0;
+    }
+
+    .project-image img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    }
+
+
+/*==================================Project Grid========================================*/
+
+    .project-grid{
+        display: grid;
+        grid-template-columns: repeat(3,1fr);
+        gap: 20px;
+
+    }
+
+    @media (max-width: 900px){
+        .project-grid{
+            grid-template-columns: repeat(2,1fr);
+        }   
+    }
+
+    @media (max-width: 600px){
+        .project-grid{
+            grid-template-columns: 1fr;
+        }   
+    }
+
+/*===================================Project Link=======================================*/
+
+    .project-link{
+        margin-top: auto;
+        color: #2563eb;
+        font-weight: bold;
+        text-decoration: none;
+    }
+    .project-link:hover{
+        text-decoration: underline;
+    }
+
+/*====================================Tags======================================*/
+
+    .tags{
+        display: flex;
+        gap: 8px;
+        margin-bottom: 15px;
+    }
+
+    .tag{
+        background: #e5e7eb;
+        color: #3730a3;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: bold;
+    }
+
+/*==================================Main, header, footer, body========================================*/
+
+    /*main content controls width, centering*/
+    main {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 30px;
+
+    }
+    /*main banner, with the background, text color and align*/
+    header{
+        background: #111827;
+        color: white;
+        text-align: center;
+        padding: 60px 20px;
+
+  }
+    /*Controls the h1 inside the header*/
+    header h1{
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+        letter-spacing: 1px;
+
+    }
+
+    /*Handles the <p> inside header*/
+    header p{
+        max-width: 700px;
+        margin: 0 auto;
+        font-size: 1.1rem;
+        color: #d1d5db;
+    }
+
+    footer{
+        background: #111827;
+        color: white;
+        text-align: center;
+        padding: 20px 20px;
+    }
+
+
+
+    /*controls spacing of everything in the body*/
+    body {
+        margin: 0;
+        padding: 0;
+       font-family: Arial, Helvetica, sans-serif;
+            background: #f4f6f8;
+            color: #1f2937;
+            line-height: 1.6;
+
+    }
+
+/*====================================Navigation======================================*/
+
+
+
+    nav{
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        padding: 10px;
+
+        position: sticky;
+        top: 0;
+
+        background: #1f2937;
+
+        z-index: 100;
+    }
+    nav a{
+        color:white;
+        text-decoration:none;
+        font-weight:bold;
+    }
+    nav a:hover{
+        opacity: 0.8;
+    }
+
+    .footerNav{
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        
+    }
+    .footerNav a{
+        color:white;
+        text-decoration:none;
+    }
+    .footerNav a:hover{
+        opacity: 0.7;
+    }
+
+
+/*===================================All the projects didnt fit on a phone screen=======================================*/
+
+
+.mobile-nav {
+    display: none;
+}
+
+
+@media (max-width: 700px) {
+
+    .desktop-nav {
+        display: none;
+    }
+
+    .mobile-nav {
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        position: static;
+    }
+
+}
+
+/*===================================All the projects didnt fit on a phone screen. Footer Edition=======================================*/
+
+/* Hide mobile footer navigation normally */
+
+.mobile-footer-nav {
+    display: none;
+}
+
+
+/* Mobile footer navigation */
+
+@media (max-width: 700px) {
+
+    .desktop-footer-nav {
+        display: none;
+    }
+
+    .mobile-footer-nav {
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+    }
+
+}
+
+
+
+
+/*===================================About and Contact use this=======================================*/
+
+    .content-section{
+        background: white;
+        border-radius: 12px;
+        padding: 35px;
+        margin-bottom: 70px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+
+        margin-top: 40px;
+        max-width: 900px;
+    }
+
+
+/*==================================Had to fix navigation bar eating the top of the page========================================*/
+
+    section{
+        scroll-margin-top: 80px;
+    }
+
+/*===================================Headers on top of the projects=======================================*/
+
+
+    .category-header{
+        margin-top: 40px;
+        margin-bottom: 20px;
+    }
+    .category-header h2{
+        font-size: 2rem;
+        color: #111827;
+        margin-top: 8px;
+    }
+    .category-header p{
+        color: #6b7280;
+        max-width: 800px;
+    }
+
+/*====================================About me link decoration. Could've used the "view project" ones but i didn;t======================================*/
+    
+    .about-link{
+        display: inline-block;
+        margin-top: 20px;
+        color: #2563eb;
+        font-weight: bold;
+        text-decoration: none;
+    }
+    .about-link:hover{
+        text-decoration: underline;
+    }
+
+
+/*============================Supporting documents use this==============================================*/
+
+       .documentation {
+            margin-top: 30px;
+        }
+
+        .documentation h3 {
+            font-size: 1.25rem;
+            margin-bottom: 15px;
+            color: #374151;
+        }
+
+        .documentation-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .document-card {
+            text-decoration: none;
+            background: #ffffff;
+            border-left: 4px solid #2563eb;
+
+            padding: 18px 20px;
+
+            border-radius: 8px;
+
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+
+            transition: 0.2s;
+        }
+
+        .document-card:hover {
+            transform: translateX(4px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .document-card strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .document-card span {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        .document-card:hover strong {
+            color: #1d4ed8;
+        }
+
+/*============================Admin area==============================================*/
+
+        .admin {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-top: 70px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+            margin-bottom: 70px;
+        }
+
+        .admin h2 {
+            margin-bottom: 15px;
+        }
+
+        .admin input {
+            padding: 10px;
+            width: 70%;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+
+        .admin button {
+            padding: 10px 18px;
+            margin-left: 5px;
+
+            border: none;
+            border-radius: 6px;
+
+            background: #2563eb;
+            color: white;
+
+            cursor: pointer;
+        }
+
+        .admin button:hover {
+            background: #1d4ed8;
+        }
+
+
+
+
+
+/*============================Contact Box==============================================*/
+
+
+.contact-box {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    max-width: 700px;
+    margin-top: 20px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.contact-box label {
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.contact-box input,
+.contact-box textarea {
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 1rem;
+}
+
+.contact-box textarea {
+    min-height: 150px;
+    resize: vertical;
+}
+
+.contact-box button {
+    margin-top: 10px;
+    padding: 10px 20px;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.contact-box button:hover {
+    opacity: 0.85;
+}
+
+</style>
+
+
+
 </head>
 <body>
 
-<header> 
-        <h1> Building, Securing, and Understanding Computer Systems</h1>
-  
-</header>
+    <header>
+            <h1>Building, Securing, and Understanding Computer Systems</h1>
+            <p>A collection of projects exploring Linux, networking, cybersecurity, embedded systems, programming, offensive security, and self-hosted infrastructure.</p>
+    </header>
 
-</p>
+     <nav class="desktop-nav">
+            <a href="#about">About</a>
+            <a href="#WS&I">Web Servers & Infrastructure</a>
+            <a href="#EL&H">Embedded Linux & Hardware</a>
+            <a href="#CS&OS">Cybersecurity & Offensive Security</a>
+            <a href="#P&S">Programming & Software</a>
+            <a href="#contact">Contact</a>
+         </nav>
 
-<a href ="aboutServer.html">About</a>
+            <nav class="mobile-nav">
+            <a href="#about">About</a>
+            <a href="#WS&I">Projects</a>
+            <a href="#contact">Contact</a>
+            </nav>
 
-<h1>Projects</h1>
+       
+<main>
 
-<p>View: <button id="sortProjects">Progression</button></p>
+<section id="about" class="content-section">
 
+    <h2>About Me</h2>
+    <p>
+         I enjoy building systems from the ground up, understanding how they work, securing them, and trying to break them. My projects range from self-hosted Linux servers and networking infrastructure to embedded Linux, programming, and cybersecurity.
+<br>
+         <a class="about-link" href="aboutServer.html">Learn more about me →</a>
+    </p>
 
+</section>
 
-<style>
-.project {
-    margin-bottom: 20px;
-}
-</style>
+<section id="WS&I">
 
-<div id="projectList">
+<div class = "category-header">
 
-    <div class="project" data-progression="1" data-strength="3">
-        <a href="Projects/repurposingMyOldPhone.html">
-            Repurposing My Old Phone into an ARM Linux Web Server
-        </a>
-    </div>
+    <h2>Web Servers & Infrastructure</h2>
 
-    <div class="project" data-progression="2" data-strength="4">
-        <a href="SupportingDocuments/fixingUSBChargingByEditingTheDeviceTree.html">
-            Fixing USB Charging By Modifying Device Tree
-        </a>
-    </div>
+<p>Projects involving Linux servers, networking, self-hosting, security hardening, reliability, and infrastructure design.</p>
+</div>
+<div class="project-grid">
 
-<div class="project" data-progression="3" data-strength="5">
-        <a href="SupportingDocuments/buildingAServer.html">
-            Building an Always-On Web Server
-        </a>
-    </div>
-
-    <div class="project" data-progression="4" data-strength="2">
-        <a href="Projects/hardeningTheServer.html">
-            Security Hardening and Assessment of a Self-Hosted ARM Alpine Linux Web Server
-        </a>
-    </div>
-
-     <div class="project" data-progression="5" data-strength="1">
-        <a href="Projects/buildingAHighAvailabilityServerCluster.html">
-            Building a High-Availability (HA) Server Cluster
-        </a>
-    </div>
-
-      <div class="project" data-progression="6" data-strength="7">
-        <a href="Projects/numbersToWords.html">
-            Numbers to Words Converter
-        </a>
-    </div>
-
-    <div class="project" data-progression="7" data-strength="6">
-        <a href="Projects/sunnyland.html">
-            Sunnyland, Unity based 2D platformer
-        </a>
-    </div>
-
-    
-    <div class="project" data-progression="8" data-strength="8">
-        <a href="Projects/homeLab.html">
-            Home Lab
-        </a>
-    </div>
-
-    <div class="project" data-progression="9" data-strength="9">
-        <a href="Projects/embeddedLinuxPortingforAndroidHardware.html">
-            Embedded Linux Porting for Android Hardware
-        </a>
-    </div>
-
-    
-    
+    <a class="project-card" href="Projects/buildingAHighAvailabilityServerCluster.html">
 
 
-   
-  
+        <div class="project-image">
+            <img src="../Images/ThumbNails/HA_Server_Cluster.jpeg"
+                 alt="High Availability Server Cluster">
+        </div>
+
+        <h3>High Availability Server Cluster</h3>
+
+        <p>Two-node active-passive cluster designed for high availability.</p>
+
+        <div class="tags">
+            <span class="tag">Linux</span>
+            <span class="tag">Web Server</span>
+            <span class="tag">Networking</span>
+        </div>
+        <span class="project-link">View project → </span>
+
+    </a>
+
+
+    <a class="project-card" href="SupportingDocuments/buildingAServer.html">
+
+        <div class="project-image">
+            <img src="../Images/ThumbNails/BuildingAWebServer.jpeg"
+                 alt="Always-On Web Server">
+        </div>
+
+        <h3>Building an Always-On Web Server</h3>
+
+        <p>Building and configuring a self-hosted web server designed to run continuously.</p>
+
+        <div class="tags">
+            <span class="tag">Linux</span>
+            <span class="tag">Web Server</span>
+            <span class="tag">Networking</span>
+        </div>
+        <span class="project-link">View project → </span>
+
+    </a>
 
 </div>
 
+
+
+<div class="documentation">
+
+        <h3>
+            Related Documentation
+        </h3>
+
+        <div class="documentation-grid">
+
+            <a class="document-card"
+               href="SupportingDocuments/myWebsite.html">
+
+                <strong>
+                    Initial Configuration of My Website
+                </strong>
+
+                <span>
+                    Documentation covering the initial setup and
+                    configuration of the website.
+                </span>
+
+            </a>
+
+
+            <a class="document-card"
+               href="SupportingDocuments/domainRegistrationAndDNSConfiguration.html">
+
+                <strong>
+                    Domain Registration, DNS & Security Configuration
+                </strong>
+
+                <span>
+                    Documentation covering domain registration, DNS,
+                    Cloudflare, and related configuration.
+                </span>
+
+            </a>
+</div>
+
+</section>
+<section id="EL&H">
+
+<div class="category-header">
+
+    <h2>Embedded Linux & Hardware</h2>
+
+    <p>Projects exploring embedded Linux, ARM systems, hardware support, device trees, boot processes, and low-level system development.</p>
+
+</div>
+
+<div class="project-grid">
+
+    <a class="project-card" href="Projects/repurposingMyOldPhone.html">
+
+        <div class="project-image">
+            <img src="../Images/ThumbNails/RepurposingMyPhone.jpeg"
+                 alt="Android phone running ARM Linux">
+        </div>
+
+        <h3>Repurposing My Old Phone into an ARM Linux Web Server</h3>
+
+        <p>Porting Linux to an Android phone and repurposing the device as an ARM Linux server.</p>
+
+        <div class="tags">
+            <span class="tag">Linux</span>
+            <span class="tag">ARM</span>
+            <span class="tag">Embedded</span>
+        </div>
+        <span class="project-link">View project → </span>
+
+    </a>
+
+    <a class="project-card" href="SupportingDocuments/fixingUSBChargingByEditingTheDeviceTree.html">
+
+        <div class="project-image">
+            <img src="../Images/ThumbNails/FixingUSBCharging.jpeg"
+                 alt="USB charging hardware modification">
+        </div>
+
+        <h3>Fixing USB Charging by Modifying Device Tree</h3>
+
+        <p>Investigating and modifying the Linux device tree to restore USB charging functionality.</p>
+
+        <div class="tags">
+            <span class="tag">Linux</span>
+            <span class="tag">Device Tree</span>
+            <span class="tag">Hardware</span>
+        </div>
+        <span class="project-link">View project → </span>
+    </a>
+
+    <a class="project-card" href="Projects/embeddedLinuxPortingforAndroidHardware.html">
+
+        <div class="project-image">
+            <img src="../Images/ThumbNails/LinuxPortingOnAPhone.jpeg"
+                 alt="Embedded Linux running on Android hardware">
+        </div>
+
+        <h3>Embedded Linux Porting for Android Hardware</h3>
+
+        <p>Exploring Linux porting, hardware compatibility, boot processes, and device-specific support.</p>
+
+        <div class="tags">
+            <span class="tag">Linux</span>
+            <span class="tag">ARM</span>
+            <span class="tag">Embedded</span>
+        </div>
+        <span class="project-link">View project → </span>
+
+    </a>
+
+</div>
+
+
+
+    </div>
+
+
+</section>
+
+
+<section id="CS&OS">
+<div class="category-header">
+
+    <h2>Cybersecurity & Offensive Security</h2>
+
+    <p>Projects focused on system security, vulnerability assessment, security hardening, network security, and offensive security techniques.</p>
+
+</div>
+
+<div class="project-grid">
+
+
+    <a class="project-card" href="Projects/hardeningTheServer.html">
+
+        <div class="project-image">
+            <img src="../Images/ThumbNails/SecurityHardening.jpeg"
+                 alt="Security hardening of an Alpine Linux server">
+        </div>
+
+        <h3>Security Hardening of a Self-Hosted ARM Alpine Linux Server</h3>
+
+        <p>Assessing and hardening a publicly accessible Alpine Linux server from the outside inward.</p>
+
+        <div class="tags">
+            <span class="tag">Cybersecurity</span>
+            <span class="tag">Linux</span>
+            <span class="tag">Hardening</span>
+        </div>
+        <span class="project-link">View project → </span>
+
+    </a>
+
+
+    <a class="project-card" href="Projects/homeLab.html">
+
+        <div class="project-image">
+            <img src="../Images/ThumbNails/HomeLab.jpeg"
+                 alt="Cybersecurity home lab">
+        </div>
+
+        <h3>Home Lab</h3>
+
+        <p>A hands-on environment for experimenting with networking, Linux systems, cybersecurity, and offensive security.</p>
+
+        <div class="tags">
+            <span class="tag">Cybersecurity</span>
+            <span class="tag">Networking</span>
+            <span class="tag">Linux</span>
+        </div>
+        <span class="project-link">View project → </span>
+
+    </a>
+
+</div>
+
+
+</section>
+
+<div class="documentation">
+
+        <h3>
+            Related Documentation
+        </h3>
+
+        <div class="documentation-grid">
+
+            <a class="document-card"
+               href="SupportingDocuments/mysweetserverInitialExternalAssessment.html">
+
+                <strong>
+                    External Assessment of an Alpine Linux Server
+                </strong>
+
+                <span>
+                    Assessing the security of the server after hardening and configuration changes.
+                </span>
+
+            </a>
+
+        </div>
+
+
+<section id="P&S">
+
+    <div class="category-header">
+
+        <h2>Programming & Software</h2>
+
+        <p>Projects involving programming languages, software development, and application design.</p>
+
+    </div>
+
+<div class="project-grid">
+
+    <a class="project-card" href="Projects/numbersToWords.html">
+
+        <div class="project-image">
+            <img src="../Images/ThumbNails/NumToWords.jpeg"
+                 alt="Numbers to Words Converter">
+        </div>
+
+        <h3>Numbers to Words Converter</h3>
+
+        <p>A program that converts numerical values into their written word representation.</p>
+
+        <div class="tags">
+            <span class="tag">Programming</span>
+            <span class="tag">C++</span>
+        </div>
+        <span class="project-link">View project → </span>
+
+    </a>
+
+
+    <a class="project-card" href="Projects/sunnyland.html">
+
+        <div class="project-image">
+            <img src="../Images/ThumbNails/SunnyLand.jpeg"
+                 alt="Sunnyland 2D platformer">
+        </div>
+
+        <h3>Sunnyland</h3>
+
+        <p>A Unity-based 2D platformer exploring game development and interactive programming.</p>
+
+        <div class="tags">
+            <span class="tag">Unity</span>
+            <span class="tag">C#</span>
+            <span class="tag">Game Development</span>
+        </div>
+        <span class="project-link">View project → </span>
+
+    </a>
+
+</div>
+
+</section>
+
+<section class="admin">
+
+    <h2>Website</h2>
+
+    <p>
+        This website is self-hosted and maintained as part of my
+        server and infrastructure projects.
+    </p>
+
+    <p style="margin-top: 15px;">
+        <a class="project-link" href="admin/dashboard.html">
+            Admin Dashboard →
+        </a>
+    </p>
+
+</section>
+
+
+<section id="contact" class="content-section">
+
+    <div class="category-header">
+        <h2>Contact Me</h2>
+        <p>Have a question, idea, or just want to say hello? Send me a message.</p>
+    </div>
+
+    <div class="contact-box">
+
+        <label for="contactInfo">Contact Information</label>
+        <input
+            id="contactInfo"
+            type="text"
+            placeholder="Name or email"
+        >
+
+        <label for="writeSomething">Message</label>
+        <textarea
+            id="writeSomething"
+            placeholder="Write your message here..."
+        ></textarea>
+
+        <button onclick="registerTheInput()">Submit</button>
+
+    </div>
+
+</section>
+
+
 <script>
-const button = document.getElementById("sortProjects");
-const projectList = document.getElementById("projectList");
 
-let mode = "progression";
+function registerTheInput() {
 
-button.addEventListener("click", function () {
+    let contactInfo = document.getElementById("contactInfo").value;
+    let message = document.getElementById("writeSomething").value;
 
-    mode = mode === "progression" ? "strength" : "progression";
+    let combinedInput =
+        "Contact: " + contactInfo + "\n" +
+        "Message: " + message;
 
-    const projects = Array.from(projectList.children);
-
-    projects.sort(function(a, b) {
-        return Number(a.dataset[mode]) - Number(b.dataset[mode]);
+    fetch("/writeSomething", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            writeSomething: combinedInput
+        })
     });
 
-    projects.forEach(function(project) {
-        projectList.appendChild(project);
-    });
-
-    button.textContent =
-        mode === "progression"
-        ? "Progression"
-        : "Technical Strength";
-});
-</script>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h1> Supporting Documents</h1>
-<a href="SupportingDocuments/myWebsite.html"> Initial Configuration of my Website</a>
-<br><br>
-<a href="SupportingDocuments/domainRegistrationAndDNSConfiguration.html">Domain Registration, DNS and Security Configuration</a>
-<br><br>
-
-<a href="SupportingDocuments/mysweetserverInitialExternalAssessment.html" >Initial External Assessment of an Alpine Linux Server</a>
-<br><br>
-
-
-
-<h2>Admin Page</h2>
-    <a href="admin/dashboard.html">Dashboard</a>
-<br><br>
-<p>Let me know something: 
-    <br>
-<input id="writeSomething">
-<button onclick="registerTheInput()">Submit</button>
-
-    
-
-
-
-<script>
-
-function registerTheInput(){
-
-    let input = document.getElementById("writeSomething").value;
-
-    fetch("/writeSomething",{
-            method:"POST",
-            headers:{
-                "Content-Type":"application/json"
-            },
-            body: JSON.stringify({
-                writeSomething: input
-            })
-            
-
-    })
-    document.getElementById("writeSomething").value="";
-
+    document.getElementById("contactInfo").value = "";
+    document.getElementById("writeSomething").value = "";
 }
 
-
-const box = document.getElementById("writeSomething");
-
-box.addEventListener("keydown", function(event) {
-    if (event.key === "Enter") {
-        registerTheInput();
-    }
-});
-
 </script>
 
 
-<br><br>
-</p>
-<footer>
-    <p> &copy; 2026 Sushant's Website. All rights reserved.</p>
-</footer>
+</main>
 
+
+<footer>
+    <p>&copy; 2026 Sushant's Website. All rights reserved.</p>
+
+    <div class="footerNav desktop-footer-nav">
+    <a href="#about">About</a>
+    <a href="#WS&I">Web Servers & Infrastructure</a>
+    <a href="#EL&H">Embedded Linux & Hardware</a>
+    <a href="#CS&OS">Cybersecurity & Offensive Security</a>
+    <a href="#P&S">Programming & Software</a>
+</div>
+
+<div class="footerNav mobile-footer-nav">
+    <a href="#about">About</a>
+    <a href="#WS&I">Projects</a>
+</div>
+</footer>
 
 
 </body>

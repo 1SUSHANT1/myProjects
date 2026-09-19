@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+    <!-- Homepage -->
+    <url>
+        <loc>https://www.sushantadk.com/</loc>
+    </url>
+
+    <!-- Projects -->
+    <url>
+        <loc>https://www.sushantadk.com/Projects/buildingAHighAvailabilityServerCluster.html</loc>
+    </url>
+
+    <url>
+        <loc>https://www.sushantadk.com/Projects/embeddedLinuxPortingforAndroidHardware.html</loc>
+    </url>
+
+    <url>
+        <loc>https://www.sushantadk.com/Projects/hardeningTheServer.html</loc>
+    </url>
+
+    <url>
+        <loc>https://www.sushantadk.com/Projects/homeLab.html</loc>
+    </url>
+
+    <url>
+        <loc>https://www.sushantadk.com/Projects/numbersToWords.html</loc>
+    </url>
+
+    <url>
+        <loc>https://www.sushantadk.com/Projects/repurposingMyOldPhone.html</loc>
+    </url>
+
+    <url>
+        <loc>https://www.sushantadk.com/Projects/sunnyland.html</loc>
+    </url>
+
+    <!-- Supporting Documentation -->
+    <url>
+        <loc>https://www.sushantadk.com/SupportingDocuments/buildingAServer.html</loc>
+    </url>
+
+    <url>
+        <loc>https://www.sushantadk.com/SupportingDocuments/domainRegistrationAndDNSConfiguration.html</loc>
+    </url>
+
+    <url>
+        <loc>https://www.sushantadk.com/SupportingDocuments/fixingUSBChargingByEditingTheDeviceTree.html</loc>
+    </url>
+
+    <url>
+        <loc>https://www.sushantadk.com/SupportingDocuments/myWebsite.html</loc>
+    </url>
+
+    <url>
+        <loc>https://www.sushantadk.com/SupportingDocuments/mysweetserverInitialExternalAssessment.html</loc>
+    </url>
+
+</urlset>

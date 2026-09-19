@@ -1,0 +1,39 @@
+     body {
+    margin: 0 auto;
+    max-width: 1200px;
+    background: #111827;
+    color: white;
+    padding: 20px 15px;
+    border-radius: 12px;
+        box-sizing: border-box;
+}
+
+body h1 {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+}
+
+body p {
+    color: #d1d5db;
+    
+}
+
+body pre,
+body code {
+    background: #1f2937;
+    color: #e5e7eb;
+    border-radius: 8px;
+}
+
+body pre {
+    padding: 20px;
+    overflow-x: auto;
+}
+
+body code {
+    padding: 3px 6px;
+}
+body a{
+    color: #3b82f6;
+}
+

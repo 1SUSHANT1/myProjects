@@ -20,6 +20,8 @@ except requests.RequestException as e:
 	print(f"Cloudflare API error : {e}")
 	exit(1)
 
+
+
 try:
     current_ip = requests.get("https://api.ipify.org", timeout=10).text.strip()
 
@@ -64,8 +66,11 @@ if current_ip != cloudflare_ip:
 	response = requests.patch(url, headers=headers, json = data)
 	print(response.json())
 
+
+
 else:
 	print("crickets")
+
 
 #print(response.status_code)
 #print(response.json())
