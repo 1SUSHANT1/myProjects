@@ -8,7 +8,7 @@ echo "Battery = $BAT"
 if [ "$BAT" -ge 90 ]; then
 	echo 0 > /home/user/myWebsite/Executables/adminScripts/batteryAdmin
 	echo "Battery >= 90%, limiting charge."
-	echo 150000 > /sys/class/power_supply/pm8150b-charger/current_max
+	echo 50000 > /sys/class/power_supply/pm8150b-charger/current_max
 elif [ "$BAT" -le 50 ]; then
 	echo 1 > /home/user/myWebsite/Executables/adminScripts/batteryAdmin
 fi

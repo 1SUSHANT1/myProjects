@@ -1,0 +1,14 @@
+[Unit]
+Description=Gunicorn Flask Application
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gunicorn
+WorkingDirectory=/home/user/myWebsite
+ExecStart=/home/user/myWebsite/venv/bin/gunicorn --bind 127.0.0.1:8000 myPyScript:app
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

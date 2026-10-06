@@ -1,0 +1,20 @@
+#!/sbin/openrc-run
+
+name="Gunicorn"
+description="Gunicorn WSGI server for myWebsite"
+
+command="gunicorn"
+command_args="--bind 127.0.0.1:8000 --chdir /home/user/myWebsite myPyScript:app"
+
+command_user="gunicorn:webManagers"
+command_background="yes"
+pidfile="/run/gunicorn.pid"
+
+directory="/home/user/myWebsite"
+
+output_log="/home/gunicorn/gunicorn.log"
+error_log="/home/gunicorn/gunicorn.log"
+
+depend() {
+	need net
+}
