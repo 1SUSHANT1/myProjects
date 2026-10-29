@@ -1,0 +1,2090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disaster Recovery App</title>
+
+    <link rel = "stylesheet" href="../../static/style.css"> 
+
+</head>
+<body>
+    <h1>Python Based Linux Server Disaster Recovery App</h1>
+
+GitHub: <a href="https://github.com/1SUSHANT1/DisasterRecoveryApp" target="_blank">https://github.com/1SUSHANT1/DisasterRecoveryApp</a>
+<h1>About</h1>
+This is a project where I create a disaster recovery app that is able to bring back my servers from complete obliteration. If you are following my work, you may know that I have 2 servers in an High Availability server cluster, active-passive system. The app I build in this project will not only bring back the servers but also configure the server cluster. 
+The app will be a hybrid-automated app. The app will largely automate what can be automated, get user input for things like APIs, keys and instruct the user to do certain tasks. It is impossible to build the app without doing so.
+
+<h2>Plan</h2>
+This project will be split into 2 phases. Phase 1 will configure the web servers, and Phase 2 will configure the server cluster. 
+For Phase 1, to build the web server, I will take help from this guy Sushant(terrific guy btw) who has a server setup guide at: https://www.sushantadk.com/SupportingDocuments/buildingAServer.html. 
+The app will be built using Python. I know this can come as a shock to everybody because historically, I have always used Bash for automating almost everything. The reason I am using Python is because there are many things that can go wrong in this project. I am not saying that Bash can't handle errors because I have written a whole server cluster system in Bash. In this particular case, Python is much easier because of its libraries and built-in functionality for handling files, directories, JSON, subprocesses, networking, and exceptions.
+
+The goal of this application is not simply to execute a series of commands. It needs to make decisions based on the current state of the server, validate files and directories, handle user input, detect problems, and determine whether it is safe to continue with the recovery process. Python provides a much cleaner way to implement this logic while still allowing me to interact directly with the Linux system when necessary.
+
+This is also a good opportunity for me to become more comfortable with Python while building something that I actually need.
+
+<h2>Acknowledgements</h2>
+I have to thank my friend Nyaisa again for donating me her broken MacBook Air. It wasn't booting because of missing system files. I absolutely didn't care about the system files or the MacOs, so some of you might already be able to tell that I zapped away MacOs and installed Debian on it.
+
+This project will be done in the Mac. I thought about installing docker on my servers and doing it, but my servers are like bad bad kids. They'll start throwing fit in a heartbeat. Combine that with my history of breaking things, that didn't seem like a great idea.
+
+<h2>What will be documented?</h2>
+Unlike my other projects which go heavily into systems, distributed systems, networking and whatnot, this one is code-heavy project. I will document the engineering decisions behind the app in this project. It will contain things like what I tried to do, if it worked or not, what I did instead, and so on.
+I will also use the provided GitHub link to explain the developments in specific commits.
+
+<h2>Let's Get Started. Commit 1-3</h2>
+<h3>Installing services</h3>
+Let's use python to install something on the OS. Python's subprocess module allows us to launch another program directly from the code. It will be heavily used throughout this script. Let's import subprocess and run apt to install <em>nginx</em>.
+
+<pre>
+<code>
+sushant@sushant:~$ nano DRapp.py 
+sushant@sushant:~$ cat DRapp.py 
+import subprocess
+
+subprocess.run(["apt", "install", "nginx"])
+sushant@sushant:~$ sudo chmod +x DRapp.py 
+sushant@sushant:~$ python3 DRapp.py 
+Error: Could not open lock file /var/lib/dpkg/lock-frontend - open (13: Permission denied)
+Error: Unable to acquire the dpkg frontend lock (/var/lib/dpkg/lock-frontend), are you root?
+sushant@sushant:~$ sudo python3 DRapp.py 
+Installing:                     
+  nginx
+
+Installing dependencies:
+  nginx-common
+
+Suggested packages:
+  fcgiwrap  nginx-doc  ssl-cert
+
+Summary:
+  Upgrading: 0, Installing: 2, Removing: 0, Not Upgrading: 51
+  Download size: 725 kB
+  Space needed: 1,906 kB / 39.9 GB available
+
+Continue? [Y/n] 
+</code>
+</pre>
+You can see that the subprocess can install <em>nginx</em>, and is asking me for the confirmation [Y/n]. We can bypass this by providing "-y" as a argument when running the subprocess. It looks like this: <pre><code>subprocess.run(["apt", "install","-y", "nginx"])</code></pre>
+You may also have noticed that it doesn't work without root privileges. Let's make the app detect the user and abort if it is not root. We can use getpass.getuser() to get the current user's username. It looks like this:
+<pre>
+<code>
+sushant@sushant:~/DR$ head -7 DRapp.py | tail -6
+import getpass
+
+user=getpass.getuser()
+if user != "root":
+	print("Insufficient Priviledges. Please run as root. Abort")
+	exit()
+sushant@sushant:~/DR$ python3 DRapp.py 
+Insufficient Priviledges. Please run as root. Abort
+sushant@sushant:~/DR$ sudo python3 DRapp.py 
+[sudo] password for sushant: 
+nginx is already the newest version (1.26.3-3+deb13u9).
+Summary:
+  Upgrading: 0, Installing: 0, Removing: 0, Not Upgrading: 51
+sushant@sushant:~/DR$ 
+</code>
+</pre>
+Now, instead of running into an error, we handle it gracefully. 
+
+Next, let's create a function for the subprocess, so instead of  willy nilly installing <em>nginx</em>, the code only runs when the function is called. I also added a return code so that we know if the installation was successful or not. It looks like this:
+<pre>
+<code>
+def installNGINX():
+        result=subprocess.run(["apt", "install","-y", "nginx"])
+        return result.returncode
+</code>
+</pre>
+Next, I also need <em>Gunicorn</em> and <em>flask</em>. I could copy and paste this code to make it install <em>Gunicorn</em> and <em>flask</em> but where's the fun in that? Let's modify the function to accept a string which will be used as the fourth parameter in the subprocess command, so we can install any software with ease in the future. It looks like this:
+<pre>
+<code>
+def getService(service):
+        result=subprocess.run(["apt", "install","-y", service])
+        return result.returncode
+</code>
+</pre>
+And it can be called like this:
+<pre>
+<code>
+ng=getService("nginx")
+gn=getService("gunicorn")
+fl=getService("python3-flask")
+</code>
+</pre>
+This does work but it can fail, and there is no way to handle that. We need to detect the failure and give the user a chance to try again. This is obviously a while loop job. I created another function like this:
+
+<pre>
+<code>
+def installThis(service):
+        while True:
+                code=getService(service)
+                if code == 0:
+                        print(service, "successfully installed.")
+                        break
+                else:
+                        print(service, "installation failed")
+                        choice=input("Enter 1 to try again. Enter any other key to quit")
+                        if choice == "1":
+                                continue
+                        else:
+                                print(serice,"couldn't be installed. Fatal Abort")
+                                exit()
+</code>
+</pre>
+You can see that it breaks out when the service is successfully installed, gives the user a chance to try again or exit in case installation fails. I used <em>exit()</em> because the server cannot be configured without <em>NGINX, Gunicorn</em> or <em>flask</em>. 
+
+Existing software is giving me some trouble because the code isn't entering the failed states. I can get around this by manually removing the services, but let's automate this too. The cleanup app looks like this:
+
+<pre>
+<code>
+sushant@sushant:~/DR$ cat cleanUp.py 
+import subprocess
+
+def remService(service):
+	subprocess.run(["apt", "remove","-y", service])
+	subprocess.run(["apt", "purge", "-y", service])
+	subprocess.run(["apt", "-y","autoremove"])
+
+
+remService("nginx")
+remService("gunicorn")
+remService("python3-flask")
+</code>
+</pre>
+This will make testing much easier now.
+
+<h3>Git Clone. Commit 4-5</h3>
+<h3>Git</h3>
+
+Now to the meat of this project, the GitHub repo with all the data, and configuration files. Yep! the configuration files are in GitHub. Here is the function:
+<pre>
+<code>
+def gitClone():
+        subprocess.run(["git","clone","https://github.com/1SUSHANT1/myProjects.git"])
+</code>
+</pre>
+Nothing out of the ordinary here, just a git clone command ran from subprocess. But it won't work just yet because its got a dependency. 2$ for anybody who can guess the dependency(not legally binding or admissible in court. Mwehehehe). The dependency is git itself. git clone doesn't work without git but we can quickly install it the same way installed the other services. 
+
+But there is a problem. If we run the script twice, it says: <pre><code>fatal: destination path 'myProjects' already exists and is not an empty directory.</code></pre> We need to handle this gracefully. Let's make our app detect the existing directory before it runs git clone. Here is what we need to do:
+<ol>
+<li>Iterate through all the characters in the provided repository address</li>
+<li>Construct a word letter by letter until you get to a "/"</li>
+<li>When you get to the "/", save that word and iterate again constructing a second word</li>
+<li>If you can detect another "/", the first word isn't the one we are looking for (directory name is after the last "/" in a GItHub repo link)</li>
+<li>Keep doing this until you reach end of the file. Now your saved word will look like "myProjects.git"</li>
+<li>Iterate through this word again until you find the "."</li>
+<li>Everything before the "." will be your directory name</li>
+</ol>
+Ah, am I using Python? Oh well, then I can just do 
+<pre>
+<code>
+defaultRepo="https://github.com/1SUSHANT1/myProjects.git"
+        dirName=defaultRepo.split("/")[-1].removesuffix(".git")
+</code>
+</pre>
+This splits the directory address at the forward slashes, grabs the last item on the list, and removes the trailing ".git". Python lovers, count your days.
+
+<h3>Path</h3>
+
+After extracting the directory name, we need to ask python to treat it as a path. For this, we need to import the Path library. It looks like this:
+<pre>
+<code>
+from pathlib import Path
+def gitClone():
+        defaultRepo="https://github.com/1SUSHANT1/myProjects.git"
+        dirName=defaultRepo.split("/")[-1].removesuffix(".git")
+        print(dirName)
+
+        alreadyEx=Path(dirName)
+        if alreadyEx.exists():
+                print("Directory already exists")
+        else:
+                subprocess.run(["git","clone",defaultRepo])
+
+</code>
+</pre>
+Even though this is not a final version, we can see how the detection works. If the directory already exists, it prints a debug line, but if it doesn't exist, it clones the given repo. Now let's build on this foundation and let the user enter a custom repo. Something like this:
+<pre>
+<code>
+print("This is the default repo:", defaultRepo)
+                choice=input("Enter 1 to use the default repo. Enter 2 to use a custom repo. Enter any other key to exit: ")
+                usingRepo=""
+                if choice == "1":
+                        usingRepo=defaultRepo
+                elif choice == "2":
+                        usingRepo=input("Enter your custom GitHub repo")
+                else:
+                        print("FATAL. Git clone unsuccessful. Abort")
+                        exit()
+</code>
+</pre>
+Next, let's give user the option to remove the current directory and get a fresh copy from GitHub in case of existing directory. We can use shutil.rmtree() to remove a directory. This is a very sensitive operation and we don't want to accidentally or hastily remove the directory without getting a proper confirmation.  Something like this?
+<pre>
+<code>
+def gitClone():
+        while True:
+                defaultRepo="https://github.com/1SUSHANT1/myProjects.git"
+                print("This is the default repo:", defaultRepo)
+                choice=input("Enter 1 to use the default repo. Enter 2 to use a custom repo. Enter any other key to exit: ")
+              --------------------------snip---------------------------
+                        print("Directory already exists")
+                        desicion=input("Enter 1 to work with the existing directory. Enter 2 to remove the existing directory. Press any other key to restart git clone: ")
+                        if desicion == "1":
+                                print("Using the existing directory")
+                                break
+                        elif desicion == "2":
+                                conf=input(f"WARNING: This will remove the existing {dirName} directory. Enter C to proceed. Press any other key to restart git clone: ")
+                                if conf == "C":
+                                        print("Removing the existing directory")
+                                        try:
+                                                shutil.rmtree(alreadyEx)
+                                        except Exception as e:
+                                                print("Existing directory couldn't be removed.",e," Please try again")
+                                                continue
+                                        clcode=subprocess.run(["git","clone",usingRepo]).returncode
+                                        if clcode == 0:
+                                                print("Remote Repo successfully cloned.")
+                                                break
+                                        else:
+                                                print("Remote Repo couldn't be cloned. Please try again")
+                                                continue
+                                else:
+                                        continue
+                else:
+                                clcode=subprocess.run(["git","clone",usingRepo]).returncode
+                                if clcode == 0:
+                                        print("Remote Repo successfully cloned.")
+                                        break
+                                else:
+                                        print("Remote Repo couldn't be cloned. Please try again")
+                                        continue
+</code>
+</pre>
+This looks complex but the logic is very simple.
+<ul>
+<li>Extract the directory name from the repository address</li>
+<li>Check if it already exists</li>
+<li>If it already exists, ask the user if they want to use it or remove it and get a fresh copy. If the user wants to use it, just break. If they want to remove it, run shutil on a try block, and run git clone in case there's no exceptions</li>
+<li>If it doesn't exist, just run git clone</li>
+<li>Check the return code from the git clone subprocess. If it returns 0, we are good  to go, but if it returns anything else, we make the user go through the process again.</li>
+</ul>
+Now we have all the services we need and we also downloaded the files from GitHub. Next, let's verify the files and directory structure. 
+
+<h2>Directory verification</h2>
+We just cloned a remote GitHub repo. But the repo could be just repo->banana. There's nothing we can do with a directory like this, so we need to verify the directory compliance. I want to split the verification between server critical configuration files and overall directory structure. Missing server critical files will get a hard exit, but different directory structure will only get a warning. Basically, if we can't find the files to build the web server, we will exit, but if only the directory structure is different, we build the server, and let that off with a warning that the website may not be served correctly. I will also include a option where the user can enter the location of the critical files if I can't find it where it is supposed to be. I will even supply my own configuration files from my GitHub repo if it is appropriate and the user consents. 
+
+After having the clearer plan, I ran into a problem right off the bat. Two problems to be exact. I don't have the default repo, or the user's custom repo directory name. They only exist in the gitClone() function. I fixed it by moving the default repo address out of the gitClone() function and passed it as an argument. Like this: <pre><code>def gitClone(defaultRepo):</code></pre>
+Then in the gitClone function, I returned the directory name before breaking. Like this:
+<pre>
+<code>
+ return(dirName)
+                                                break
+</code>
+</pre>
+Now the function call looks like:
+<pre>
+<code>
+defaultRepo="https://github.com/1SUSHANT1/myProjects.git"
+rootDir=gitClone(defaultRepo)
+</code>
+</pre>
+<h3>Critical Files</h3>
+With the default repo and custom directory name accessible, let's move on to check the critical files. The critical files are:
+<ol>
+<li>Python App. User must provide this because it is custom to directory structure.</li>
+<li>NGINX configuration. User must provide this for the same reason.</li>
+<li>Firewall configuration. I can supply this from my GitHub repo if the user doesn't have it.</li>
+</ol>
+These are the only critical files to set up the server. However, we will have more critical files when we configure the server cluster.
+
+The Expected locations are as follows:
+<ol>
+<li>Python App. rootDirectory->myPyApp.py</li>
+<li>NGINX configuration. rootDirectory->serverConfiguration->nginx->nginx.conf</li>
+<li>Firewall configuration. rootDirectory->serverConfiguration->firewall->nftables.conf</li>
+</ol>
+To check this, I am going to declare the directories where the files should be, and look into the directories and try to locate the file. Even if the file doesn't exist, I will still have the directories where the files "should" be so I can move the files if the user provides them. The foundation looks like this:
+<pre>
+<code>
+def verifyDirectory(defaultRepo,rootDir):
+        rootDir=Path(rootDir)
+        expPyApp=rootDir
+        expNgConf=rootDir/"serverConfiguration"/"nginx"
+        expFiConf=rootDir/"serverConfiguration"/"firewall"
+
+        if (expPyApp/"myPyScript.py").exists():
+                print("Python app found")
+        else:
+                print("Python app wasn't found")
+
+        if(expNgConf/"nginx.conf").exists():
+                print("NGINX conf file found")
+        else:
+                print("NGINX conf file not found")
+
+        if(expFiConf/"nftables.conf").exists():
+                print("Nftables conf file found")
+        else:
+                print("Nftables conf file not found")
+</code>
+</pre>
+Let's implement the logic which handles the case where the file doesn't exist. We are just going to ask the user if the file exists on the repo they provided and try to locate it. Something like this:
+<pre>
+<code>
+while True:
+                if (expPyApp/"myPyScript.py").exists():
+                        print("Python app found")
+                        return (expPyApp/"myPyScript.py")
+                else:
+                        print("Python app wasn't found")
+                        existence=input("Enter 1 if the repository contains the Python app. Press any other key to exit: ")
+                        if existence == "1":
+                                loc=input(f"Enter the path to the python app. The path should start from {rootDir}: ") 
+                                loc=Path(loc)
+                                if loc.exists():
+                                        print("Python app located")
+                                        return loc
+                                else:
+                                        print("The file couldn't be located")
+                                        cont=input("Enter 1 to try again. Press any other key to exit: ")
+                                        if cont == "1":
+                                                continue
+                                        else:
+                                                exit()
+                        else:
+                                exit()
+</code>
+</pre>
+This can be converted into a function where we can pass:
+<ol>
+<li>root directory: To construct the path</li>
+<li>file name: To locate the script</li>
+<li>service name: To let the user know what files we are searching for</li>
+<li>expected directory: To see if the directory structure is correct and files already exist in the correct positions</li>
+</ol>
+It looks like this:
+<pre>
+<code>
+def locateFiles(rootDir,file,name,expDir):
+        while True:
+                if (expDir/file).exists():
+                        print(name, "file found")
+                        return (expDir/file)
+                else:
+                        print(name," file wasn't found")
+                        existence=input(f"Enter 1 if the repository contains the {name} file. Press any other key to exit: ")
+                        if existence == "1":
+                                loc=input(f"Enter the path to the {name} file. The path should start from {rootDir}: ") 
+                                loc=Path(loc)
+                                if loc.exists():
+                                        print(name, "file located")
+                                        return loc
+                                else:
+                                        print("The file couldn't be located")
+                                        cont=input("Enter 1 to try again. Press any other key to exit: ")
+                                        if cont == "1":
+                                                continue
+                                        else:
+                                                exit()
+                        else:
+                                exit()
+</code>
+</pre>
+It's the same thing as above but now we can use it to get the path to as many number of files as we need. It will be used again when setting up the server cluster.
+
+It is called like this:
+<pre>
+<code>
+rootDir=Path(rootDir)
+expPyApp=rootDir
+expNgConf=rootDir/"serverConfiguration"/"nginx"
+expFiConf=rootDir/"serverConfiguration"/"firewall"
+
+actPyLoc=locateFiles(rootDir,"myPyScript.py","Python",expPyApp)
+actNgConf=locateFiles(rootDir,"nginx.conf","NGINX", expNgConf)
+actFiConf=locateFiles(rootDir,"nftables.conf","Firewall", expFiConf)
+
+
+print("Python file is at: ", actPyLoc)
+print("NGINX file is at: ", actNgConf)
+print("Firewall file is at: ", actFiConf)
+</code>
+</pre>
+Now we have the actual file location of the mission critical files. But still, what if the files contain: file->banana? Well, there's very little what I can do regarding the content of the files that the users provide but  I can check the syntax of the files and see if they can be used where they are supposed to.
+
+<h3>Syntax</h3>
+Now this one is actually easy. We use: python3 to verify the python file, nginx to verify the NGINX file, and nft to verify the firewall file. It looks like this:
+<pre>
+<code>
+subprocess.run(["python3", "-m", "py_compile",actPyLoc])
+subprocess.run(["nginx","-t","-c",Path.cwd()/actNgConf])
+subprocess.run(["nft", "-c","-f",actFiConf])
+</code>
+</pre>
+Let me give you a hint as to what is happening here:
+<ol>
+<li>python3 loads the compiler -module</li>
+<li>nginx -tests the -configuration</li>
+<li>nft -checks the -file</li>
+</ol>
+Also, you can see that I have given nginx the absolute path because it was looking  for the file in another path. python3 and nft however, are working fine with the relative path.
+
+So are we done with the syntax section? Absolutely not. We need to handle the cases where the files fail the syntax verification. We will use .returncode to check for success or failure, and in case of failure, we give the user options to either provide a valid file or exit. Like this:
+
+<pre>
+<code>
+while True:
+        pc=subprocess.run(["python3", "-m", "py_compile",actPyLoc])
+        if pc.returncode != 0:
+                print("The python app syntax is invalid")
+                choice=input("Enter 1 to provide another file. Press any other key to exit: ")
+                if choice == "1":
+                        actPyLoc=locateFiles(rootDir,"myPyScript.py","Python",expPyApp)
+                        continue
+                else:
+                        exit()
+        else:
+                print("The python app syntax is valid")
+                break
+</code>
+</pre>
+In another life, I would make you stay.. WHAT? let me try that again. In another world, maybe this piece of code would take the user back to where they would enter the file location and everybody would live happily ever after. But the second argument in locateFiles, "myPyScript.py" always breaks the while loop if the file exists and the user can never enter another file name. I can get around it like this:<pre><code>actPyLoc=locateFiles(rootDir,"thisFIleShouldntExist.IfThisFileExists,IWillCrashOut.#nonexistentFile","Python",expPyApp)
+</code></pre>
+Now this does work normally, but if I do this, the thought of " what if the 'thisFIleShouldntExist.IfThisFileExists,IWillCrashOut.#nonexistentFile' file does exist? then, again, the user can't enter a new file path" will haunt me for the rest of my life.
+
+I absolutely didn't want to touch the locateFiles function because it is so beautiful, so I was looking for a way to exploit the semantics of the Path library and Linux filesystem to provide a input that will cause a problem and lead .exists() to always return false triggering the else block where the users can enter the new file path. I tried inputs like: ".........", "/////////////", "/.//././././////./././", "$%^&6215///////./././" and realized how robust Linux filesystem was. It was resolving everything I threw its away. Defeated, now I should modify the locateFiles function to ask the user if they want to enter another file even if the default file "myPyScript.py" exists. This will create extra steps while using the app but then again, I wished there was a piece of code like "configureServersAndCluster=True" which would automatically configure everything reducing the number of steps to 1.
+
+The modified locateFiles function looks like this:
+<pre>
+<code>
+def locateFiles(rootDir,file,name,expDir):
+        while True:
+                expLoc=expDir/file
+                if (expLoc).exists():
+                        print(name, "file found at:",expLoc)
+                        choice=input(f"Enter 1 if you want to provide a different {name} file. Press any other key to use the default {file} file: ")
+                        if choice == "1":
+                                loc=input(f"Enter the path to the {name} file. The path should start from {rootDir}: ") 
+                                loc=Path(loc)
+                                if loc.exists():
+                                        print(name, "file located")
+                                        return loc
+                                else:
+                                        print("The file couldn't be located")
+                                        cont=input("Enter 1 to try again. Press any other key to exit: ")
+                                        if cont == "1":
+                                                continue
+                                        else:
+                                                exit()
+                        else:
+                                return (expLoc)
+                else:
+                        print(name," file wasn't found")
+                        existence=input(f"Enter 1 if the repository contains the {name} file. Press any other key to exit: ")
+                        if existence == "1":
+                                loc=input(f"Enter the path to the {name} file. The path should start from {rootDir}: ") 
+                                loc=Path(loc)
+                                if loc.exists():
+                                        print(name, "file located")
+                                        return loc
+                                else:
+                                        print("The file couldn't be located")
+                                        cont=input("Enter 1 to try again. Press any other key to exit: ")
+                                        if cont == "1":
+                                                continue
+                                        else:
+                                                exit()
+                        else:
+                                exit()
+</code>
+</pre>
+Copy/Paste? What Copy/Paste?
+
+Now the workflow will be:
+<ol>
+<li>while True:</li>
+<li>check syntax</li>
+<li>if syntax is OK, break</li>
+<li>if the syntax is bad, direct the user to locateFiles where they can enter a new file path</li>
+<li>continue</li>
+<li>check syntax</li>
+<li>merry go round until the user either gives a valid file, or gives up. (You think Future will sign me?)</li>
+</ol>
+
+
+
+The firewall configuration file's syntax is verified the same way as the python file. Let's move on to NGINX. The code looks like this:
+
+<pre>
+<code>while True:
+        try:
+                shutil.copy(actNgConf,"/etc/nginx/conf.d/")
+        except:
+                print("The file could not be copied. Please try again. You might want to run the cleanUp.py app if the problem persists")
+                choice=input("Enter 1 to provide another file. Press any other key to exit: ")
+                if choice == "1":
+                        actNgConf=locateFiles(rootDir,"nginx.conf","NGINX", expNgConf)
+                        continue
+                else:
+                        exit()
+        else:
+                print("NGINX file copied to the nginx directory")
+                confStr=str(actNgConf)
+                fileName=confStr.split("/")[-1]
+                print("Filename is: ",fileName)
+                filePath=Path("/etc/nginx/conf.d")/fileName
+                print("FilePath is: ", filePath)
+
+
+        nc=subprocess.run(["nginx","-t","-c","/etc/nginx/nginx.conf"])
+        if nc.returncode != 0:
+                print("The NGINX configuration file is invalid. This file should be removed")
+                try:
+                        filePath.unlink()
+                except:
+                        print("file couldn't be removed")
+                        choice=input("Enter 1 to provide another file. Press any other key to exit: ")
+                        if choice == "1":
+                                actNgConf=locateFiles(rootDir,"nginx.conf","NGINX", expNgConf)
+                                continue
+                        else:
+                                exit()
+                else:
+                        print("The file was removed")
+                        desicion=input("Enter 1 if you want to provide another file. Press any other key to exit: ")
+                        if desicion == "1":
+                                actNgConf=locateFiles(rootDir,"nginx.conf","NGINX", expNgConf)
+                                continue
+                        else:
+                                exit()
+
+        else:
+                print("The NGINX file syntax is valid")
+                break
+</code>
+</pre>
+Let me explain what is going on here:
+<ol>
+<li>try block. I try to copy the nginx file using shutil.copy().</li>
+<li>If copy is successful, I proceed to extract the file name. To do this, I convert the Path object to string object. Split it at "/" and grab the last item on the list. Then I construct the path to where the file is. Why did I do it? stay tuned.</li>
+<li>Then I run the syntax test from the subprocess. Test the main file: /etc/nginx/nginx.conf, not the standalone file we copied because the main file includes our file which will also be checked during the test. Testing the standalone server file will always return 1 because the file isn't complete in nginx syntax.</li>
+<li>If the test passes, we break</li>
+<li>If it fails, we immediately remove the file using the file path I constructed above.</li>
+<li>Then we prompt the user to enter another file.</li>
+<li>Why remove the failed file? because if a file with incorrect syntax exists on the /etc/nginx/conf.d directory, future tests will always fail. We remove the failed file immediately after we realize the syntax is wrong and save us loads of trouble in the future. </li>
+<li>Ask me how I know this. I dare you, I double dare you, I just done had a huge fight with nginx and Python and I don't mind another one.</li>
+</ol>
+<p>But I missed something. While running the syntax check on the main file, I realized that nginx configuration might mean the main file to most people. If I put the main file in /conf.d, there will be two main files one nested in the other and it will surely always fail. I need to let the user choose if the file is the main file or the server file and move it to correct places accordingly. Shouldn't take long.</p>
+
+<p>AAAAAAAAAAAAA CUSS PYTHON CUSS NGINX CUSS  C++ CUSS COMPUTERS CUSS CODE CUSS PROGRAMMING CUSS LINUX CUSS SERVERS CUSSING EVERYTHING</p>
+
+<p>WHY THE CUSS IS PYTHON SO OBSESSED WITH INDENTS AND WHY IS NGINX DOING WHATEVER THE CUSS IT WANTS</p>
+
+<p>Let me show what I mean. Look at this:</p>
+<pre>
+<code>
+while True:
+	whichFile=input("Enter 1 if the NGINX file is the main configuration file. Enter 2 if it is the server configuration file: ")
+	if whichFile !="1" and whichFile != "2":
+		desicion=input("Invalid input. Enter 1 to try again. Press any other key to exit: ")
+		if desicion == "1":
+			continue
+		else:
+			exit()
+
+	try:
+		if whichFile == "1":
+			try:
+				shutil.copy("/etc/nginx/nginx.conf","/etc/nginx/nginxBack.conf")
+			except:
+				print("Original File couldn't be copied")
+				choice=input("Enter 1 to provide another file. Enter 2 to ignore and proceed. Press any other key to exit: ")
+				if choice == "1":
+					actNgConf=locateFiles(rootDir,"nginx.conf","NGINX", expNgConf)
+					continue
+				elif choice == "2":
+					conf=input("This will remove the original configuration file without backup. Enter C to continue. Press any other key to try again")
+					if conf == "C":
+						print("Proceeding without the creating the backup")
+					else:
+						continue
+				else:
+					exit()
+			else:
+				originalFile=Path("/etc/nginx/nginxBack.conf")
+				print("Original file was copied to:",originalFile)
+				recoverFlag=True
+
+			shutil.copy(actNgConf,"/etc/nginx/")
+		else:
+			shutil.copy(actNgConf,"/etc/nginx/conf.d")
+	except:
+		print("The file could not be copied. Please try again. You might want to run the cleanUp.py app if the problem persists")
+		choice=input("Enter 1 to provide another file. Press any other key to exit: ")
+		if choice == "1":
+			actNgConf=locateFiles(rootDir,"nginx.conf","NGINX", expNgConf)
+			continue
+		else:
+			exit()
+	else:
+		print("NGINX file copied to the nginx directory")
+		confStr=str(actNgConf)
+		fileName=confStr.split("/")[-1]
+		print("Filename is: ",fileName)
+
+		if recoverFlag==False:
+			filePath=Path("/etc/nginx/conf.d")/fileName
+			print("FilePath is: ", filePath)
+		else:
+			filePath=Path("/etc/nginx")/fileName
+			print("FilePath is: ", filePath)
+
+	nc=subprocess.run(["nginx","-t","-c","/etc/nginx/nginx.conf"])
+	if nc.returncode != 0:
+
+		if recoverFlag == False:
+
+			print("The NGINX configuration file is invalid. This file should be removed")
+			try:
+				filePath.unlink()
+			except:
+				print("file couldn't be removed")
+				choice=input("Enter 1 to provide another file. Press any other key to exit: ")
+				if choice == "1":
+					actNgConf=locateFiles(rootDir,"nginx.conf","NGINX", expNgConf)
+					continue
+				else:
+					exit()
+			else:
+				print("The file was removed")
+				desicion=input("Enter 1 if you want to provide another file. Press any other key to exit: ")
+				if desicion == "1":
+					actNgConf=locateFiles(rootDir,"nginx.conf","NGINX", expNgConf)
+					continue
+				else:
+					exit()
+
+		else:
+			print("The NGINX configuration file is invalid")
+			desicion=input("Enter 1 to provide another file. Press any other key to recover the original file and exit")
+			if desicion == "1":
+				actNgConf=locateFiles(rootDir,"nginx.conf","NGINX", expNgConf)
+				continue
+			else:
+				try:
+					shutil.copy(originalFile,"/etc/nginx/nginx.conf")
+				except:
+					print("The original file couldn't be recovered")
+				else:
+					print("Original file was successfully recovered")	
+					exit()
+
+	else:
+		print("The NGINX file syntax is valid")
+		break
+
+</code>
+</pre>
+
+<p>You might not be able to picture this properly so I've got pictures.</p>
+
+<p>1. First version: Cute little code, Happiness, Sunshine, and Rainbow</p>
+
+<iframe src="../../Images/disasterRecovery/Version1.html" width="80%" height="500"></iframe>
+
+<p>2. Second version: What the cuss is this?</p>
+
+<iframe src="../../Images/disasterRecovery/Version2.html" width="80%" height="2000"></iframe>
+
+
+<p>Let me see if I can explain what the cuss is going on here:</p>
+<ul>
+<li>First, we ask the user if the file is the main file or the server file</li>
+<li>If it is a main file,
+<ol>
+<li>Try to create a backup of the existing file. I learned the hard way that if you replace the main file with a file with incorrect syntax, nothing will work correctly. If you think you're smart and remove nginx thinking it will be fixed when you install it again, it just won't install again. If you become smarter and remove the /etc/nginx directory, it still won't install again because now you've got missing files. Then your best bet is to download the .deb file and reconstruct the filesystem and finally install nginx again. Please ask me how I know this. </li>
+<li>If the backup is successful, we construct the path. It will be /etc/nginx/file because it is the main file. </li>
+<li>If the backup is unsuccessful, we ask the user if they want to ignore it or try again with a new file. </li>
+<li>Then we extract the file name by splitting the path on "/" and getting the last value on the list.</li>
+<li>Then we construct the file path</li>
+<li>Then we run the syntax test</li>
+<li>If it passes, we break</li>
+<li>If it fails, we ask the user if they want to try again with a new file or exit</li>
+<li>If the user wants to exit, we replace the new file with the backup of the original file we created and then exit</li>
+</ol>
+</li>
+<li>If it is a server file:
+<ol>
+<li>try block. Try to copy the nginx file using shutil.copy().</li>
+<li>If copy is successful, Proceed to extract the file name. To do this, I convert the Path object to string object. Split it at "/" and grab the last item on the list. Then construct the path to where the file is.>
+<li>Then run the syntax test from the subprocess. Test the main file: /etc/nginx/nginx.conf</li>
+<li>If the test passes, we break</li>
+<li>If it fails, we immediately remove the file using the file path I constructed above.</li>
+<li>Then we prompt the user to enter another file.</li>
+</ol>
+</ul>
+<p>This description is intentionally short and dense. I gotta sleep. Goodnight!</p>
+
+<h3>Reflection</h3>
+(Few hours later) Nice day today! And if you have to know, I already apologized to Python and NGINX, and kissed all my servers (even the remote backup server over SSH) so we're good to go.
+
+At this point, the files have been located and the syntax has been verified. Now we move the files. And since NGINX very practically taught me the dangers of not keeping backup of the original files, we will create backups for all the files we replace. Also, since NGINX's lesson stuck so hard with me, after this section, we will go back to the cleanup file and extensively work on it so that once it is run, rather than just dumbly removing 3 services, it will also try and recover the files that were replaced with their original backups. This way, the damage if there is any will be minimized.
+
+Also, I did find some bugs on the code but we'll come to that after I get over the PTSD.
+
+<h3>Moving The Files</h3>
+
+First, let's work with the Firewall file. Before moving it, first, we have to understand how nft uses the configuration file. nft can load multiple configuration files, so we will be adding the file to existing rules rather than replacing files. That brings us to one major concern: flush ruleset. If the new file contains flush ruleset, it will delete the existing configuration and load new rules.
+
+So the solution is obvious right? just create a backup of the existing files so that you can recover them when you need. It's the same principle but a different approach. Once you load a file, nftables parse the file and add the rules to the kernel's ruleset. However, we don't know which files those rules came from because there's no logs for it. So how do we create a backup?
+
+We extract the current rules and keep it as a backup. <pre><code>sudo nft list ruleset</code></pre>
+This gives us all the rules that the kernel currently has. But we can't just directly forward its output to a file and call it a backup. If we do this and later apply it, the backed up rules will be added on top of the new rules. That's not what I want the backup to do. I want the backup to replace the current rules with the rules in the backup file. 2$ for anybody who can tell me how its done (not legally binding or admissible in court. Mwehehehe). The simplest solution is to add "flush ruleset" on top of the rules. So the workflow will be:
+<ul>
+<li>Create a backup file.</li>
+<li>Write "flush ruleset" </li>
+<li>append the current rules</li>
+</ul>
+The code looks like this:
+<pre>
+<code>
+backFire=Path(expFiConf/"backFire.conf")
+cuRule=subprocess.run(["nft","list","ruleset"],
+capture_output=True,
+text=True
+).stdout
+backFire.write_text(f"flush ruleset\n{cuRule}")
+</code>
+</pre>
+That's it! backup is made. I created a file called backFire.conf. I captured the current nft rules as a text in a variable. In a single command, I wrote "flush ruleset {next line} current rules". So when we load this file into nft, it will remove all the existing rules and the previous rules will go into effect.
+
+But wait a minute (here we go), dumbly writing "flush ruleset" is not a good idea because if we do it many times, it will just keep adding the line "flush ruleset" on top of existing "flush ruleset"s and will cause problems. So if you think the solution is to detect "flush ruleset" and handle it accordingly, you may be right but that's not what I'm going to do. The reason I did <em>backFire.write_text(f"flush ruleset\n{cuRule}")</em> is because I like atomic operations, but this one has to be ..unatomic?
+
+We change: <em>backFire.write_text(f"flush ruleset\n{cuRule}")</em> to:
+<pre>
+<code>
+backFire.write_text(cuRule)
+</code>
+</pre>
+And when we are performing the recovery, instead of just loading the file, we clear the ruleset first, then we load the file. We are separating the file automatically flushing the ruleset to we flushing the ruleset and loading the file. Slightly less ..atomic but it'll have to do.
+
+Now we absolutely don't care if the user provided file has flush ruleset or not:
+<ul>
+<li>It it does have it, and if it works, we good</li>
+<li>If it does have it and it don't work, we just flush it and recover the backup</li>
+<li>If it doesn't have it, it will be added to the current rules. If it causes problem then, we still flush the current rules and recover backup</li>
+</ul>
+Basically, if anything goes wrong, zap the current ones, recover the old ones. But wait, there may be a case where the old one might be corrupted. If there was a corrupted firewall loaded in the previous run, it will be taken as a trusted backup(not really) in this run. OH MY GOD THIS KEEPS HAPPENING. THE MOMENT I EVEN BEGIN TO THINK I MAY BE DONE, THIS PIECE OF CUSS THROWS SOMETHING ELSE MY WAY.
+
+Calm down guys violence is not the solution. We'll just have to detect if a firewall backup already exists. If it does, we recommend the user to not make a new backup because the existing file very well may be the original file which was once made and not modified. So let's make two backups. This one is: backFire.conf, and we make another one called backFireImmutable.conf. The app will never give the user an option to mess with the immutable file. The logic will just be:
+
+<ul>
+<li>detect if backFireImmutable.conf exists</li>
+<li>if it does, do nothing</li>
+<li>if it does not (this may be the first time this app is run), create it.</li>
+</ul>
+That's it. No user involvement at all. Matter of fact, let's  do this with every backup. Make a directory called immutable. The files on this directory will never be modified or updated once created. Also, make this script not use the immutable files because there is too much going on here. Have the cleanUp app use the immutable files and rename them to immutableOld files once the immutable files have been successfully used for recovery. We never delete immutable files. We store them like: nginxImmutableOld1, nginxImmutableOld2, nginxImmutableOld3,....
+, and if the user is very determined, he may crash his computer at nginxImmutableOld1000000000, but that's by design. If you don't like this, go ahead and make your own app and quit bothering me.
+Again, here is the separation of responsibilities.
+<ol>
+<li>Fresh run. DRapp.py creates regular backups and immutable backups. </li>
+<li>Subsequent runs. Regular backups may be updated. Immutable backups are not touched.</li>
+<li>DRapp.py never uses the immutable backups</li>
+<li>In case of a catastrophe, we direct the user to run the cleanUp.py app</li>
+<li>cleanUp.py restores the system files from immutable backups because regular backups may be corrupted</li>
+<li>cleanUp.py moves immutable files to immutableOld files so that new immutable files can be created again on the fresh run.</li>
+<li>Nothing accesses the immutableOld files, not even the cleanup app. If the cleanup app is run more than once, it will not replace any files because immutable files have been converted to immutableOld files which are the files no app will access.</li>
+<li>Only the user can use and perform recovery from the immutableOld files</li>
+<li>No app will ever delete an immutable file. The cleanup app can only rename them and that's it.</li>
+</ol>
+I don't know what I hit my head with but I do think I came up with something useful here. I am a bit conflicted as to the location of the immutable files but I'll just use the home directory for now.
+I put this code right after the user is verified to be root:
+<pre>
+<code>
+home=Path.home()
+if (home/"immutables").exists():
+        print("Immutables directory already exists")
+else:
+        try:
+                (home/"immutables").mkdir()
+        except:
+                print("immutables directory could not be created. The app will exit")
+                exit()
+        else: 
+                print("Immutables directory was created")
+</code>
+</pre>
+
+Let's finish the firewall section and we'll move to the cleanup app. This is how I check for the immutable firewall file:
+<pre>
+<code>
+ writeToImmutableFile=False
+        if (immutables/"immutableFire.conf").exists():
+                print("Immutable firewall file exists")
+        else:
+                print("Immutable firewall file doesn't exist. Creating now")
+                immutableFirewall=immutables/"immutableFire.conf"       
+                try:
+                        immutableFirewall.touch()
+                except:
+                        print("Couldn't create the Immutable firewall file")
+                        choice=input("Enter 1 to try again. Enter 2 to continue without creating the immutable file. Press any other key to exit")
+                        if choice == "1":
+                                continue
+                        elif choice == "2": 
+                                print("Continuing without creating the immutable file")
+                        else:
+                                exit()
+                else:
+                        print("Immutable firewall file was created")
+                        writeToImmutableFile=True
+
+if writeToImmutableFile == True:
+                try:
+                        immutableFirewall.write_text(cuRule)
+                except:
+                        print("Couldn't write to the Immutable firewall file")
+                        choice=input("Enter 1 to try again. Enter 2 to continue without writing to the immutable file. Press any other key to exit")
+                        if choice == "1":
+                                continue
+                        elif choice == "2": 
+                                print("Continuing without writing to the immutable file")
+                        else:
+                                exit()
+                else:
+                        print("Immutable firewall backup created")
+
+
+</code>
+</pre>
+It's a shame that I hadn't thought about backups and fail safes and all of this bullcuss when I thought about this project. I thought it was just going to be:
+<ol>
+<li>download files</li>
+<li>move files</li>
+<li>done</li>
+</ol>
+But even though this is only about halfway through phase 1, it has already gotten to: 
+<ol>
+<li>Download files/ Download custom files</li>
+<li>Verify Files</li>
+<li>Check Syntax. Differently for each file</li>
+<li>Make regular backups</li>
+<li>Make immutable backups</li>
+<li>Move files</li>
+<li>Have a cleanUp app</li>
+<li>Try to restore the original machine state from immutable files</li>
+<li>Still not done. Still have to do:
+	<ul>
+	<li>Create users</li>
+	<li>Create groups</li>
+	<li>Handle permissons</li>
+	<li>Configure networking</li>
+	<li>Get certificates</li>
+	<li>I don't even know what comes after or in between these</li>
+	</ul>
+</li>
+</ol>
+Well, let's get back to the firewall file. We have already created both backups. Now let's just load it into nft. We are not going to implement recovery here the way we did with NGINX. For NGINX, we immediately know when the file fails syntax check and we have to remove it. But for the firewall configuration file, the file has already passed a syntax check. Let's just load it to nft. Recovery is the cleanUp app's job. Here it is:
+
+<pre>
+<code>
+loadFirewall=subprocess.run(["nft","-f",actFiConf])
+        fireCode=loadFirewall.returncode
+        if fireCode == 0:
+                print("The firewall configuration file was correctly loaded into nft")
+                break
+        else:
+                print("The firewall configuration file wasn't loaded into nft")
+                choice=input("Enter 1 to try again. Press any other use the existing firewall rules")
+                if choice =="1":
+                        continue
+                else:
+                        print("Using the existing firewall rules")
+                        break
+</code>
+</pre>
+We load the file into nft from the subprocess and handle the exit code. Nothing else to see here. Let's go back to NGINX and fix the bug I found. 
+
+<h3>Back to NGINX</h3>
+Right here is the problematic part:
+<pre>
+<code>
+print("The NGINX configuration file is invalid")
+                        desicion=input("Enter 1 to provide another file. Press any other key to recover the original file and exit")
+                        if desicion == "1":
+                                actNgConf=locateFiles(rootDir,"nginx.conf","NGINX", expNgConf)
+                                continue
+                        else:
+                                try:
+                                        shutil.copy(originalFile,"/etc/nginx/nginx.conf")
+                                except:
+                                        print("The original file couldn't be recovered")
+                                else:
+                                        print("Original file was successfully recovered")       
+                                        exit()
+</code>
+</pre>
+If the user enters 1, I send him back to locate a new file. That's okay but I didn't remove the problematic file. This lead to problems but being a non-hasty guy that I am, here is what I did to recover.
+<pre>
+<code>
+sushant@sushant:/tmp$ sudo apt download nginx-common
+Get:1 http://deb.debian.org/debian-security trixie-security/main amd64 nginx-common all 1.26.3-3+deb13u9 [112 kB]
+Fetched 112 kB in 0s (2,148 kB/s)      
+Warning: Download is performed unsandboxed as root as file '/tmp/nginx-common_1.26.3-3+deb13u9_all.deb' couldn't be accessed by user '_apt'. - pkgAcquire::Run (13: Permission denied)
+sushant@sushant:/tmp$ ls
+nginx-common_1.26.3-3+deb13u9_all.deb  
+sushant@sushant:/tmp$ sudo dpkg-deb -x nginx-common_1.26.3-3+deb13u9_all.deb .
+sushant@sushant:/tmp$ ls
+etc              var              nginx-common_1.26.3-3+deb13u9_all.deb              usr
+sushant@sushant:/tmp$ sudo mv etc/nginx/nginx.conf /etc/nginx/
+</code>
+</pre>
+I just downloaded nginx-common, extracted it and move the fresh file to my /etc/nginx directory. Didn't crash out at all.
+
+But let's get back to the solution of the bug. The solution is the rule of thumb I created which was to handle the file immediately after it fails syntax text. Like this:
+
+<pre>
+<code>
+ print("The NGINX configuration file is invalid")
+print("The NGINX configuration file is invalid")
+                        try:
+                                shutil.copy(originalFile,"/etc/nginx/nginx.conf")
+                        except:
+                                print("The original file couldn't be recovered. This may cause problems.")
+                        else:
+                                print("Original file was successfully recovered")       
+
+                        desicion=input("Enter 1 to provide another file. Press any other key to exit: ")
+                        if desicion == "1":
+                                actNgConf=locateFiles(rootDir,"nginx.conf","NGINX", expNgConf)
+                                continue
+                        else:
+                                exit()
+</code>
+</pre>
+Now, the moment the file fails the syntax check, it is immediately replaced by the original file before proceeding. Also, there are a lot of times where I did something like: 
+<ul>
+<li>try copy, move or delete </li>
+<li>If it fails, I ask the user to provide a new file</li>
+<li>This is completely  backwards because an action with an existing file has failed and I am asking for another file?</li>
+<li>I will eventually replace this</li>
+</ul>
+ But let's get NGINX to also make an immutable file first. Server file won't get a immutable file because we are not replacing anything. We are just adding a new file and removing if it is bad. Let'd create a immutable file for the main configuration file. Here is how I did it:
+ <pre>
+ <code>
+else:
+                print("The NGINX file syntax is valid")
+                
+        if (immutables/"immutableNGINX.conf").exists():
+                        print("Immutable NGINX file exists")
+        else:
+                print("Immutable NGINX  file doesn't exist. Creating now")
+                immutableNGINX=immutables/"immutableNGINX.conf"
+                try:
+                        shutil.copy("/etc/nginx/nginx.conf",immutableNGINX)
+                except:
+                        print("Couldn't create the Immutable NGINX file")
+                        choice=input("Enter 1 to try again. Enter 2 to continue without creating the immutable file. Press any other key to exit")
+                        if choice == "1":
+                                continue
+                        elif choice == "2": 
+                                print("Continuing without creating the immutable file")
+                        else:
+                                exit()
+                else:
+                        print("Immutable NGINX file was created")
+        break
+</code>
+</pre>
+You can see that I checked for the immutable file and create the file AFTER the file's syntax has been verified. This is better from the firewall file where I create a file in one section and write to it on another. But they both work, so I'll leave them be for now.
+
+<h3>Python App</h3>
+I initially thought I was going to have to move the python file too but I realized, with custom repositories, there is no way for me to know where the file is supposed to operate from and how the routes are set up. So the python app will run from whatever directory it is currently it is in. For that reason, the python app doesn't get a backup because we are never going to remove or move it. It will just operate from whatever directory it is in.
+
+<h2>CleanUp app</h2>
+At first, my plan was to have the main app write a json to a file which would be read by the cleanUp app and cleaning would be done accordingly. But currently, I think we can decide what to do just by looking around. We do remove all the services that we installed. But for the file recovery, we check for the existence of the immutable files. If they exist, we use them for recovery and rename them. If they don't exist or have been renamed, either the user chose to proceed without the immutable files, or nothing has altered so no recovery is needed.
+
+First thing I did was add the root check on the cleanUp app because it too requires root privileges. Then I modified the existing code to:
+
+<pre>
+<code>
+def remService(service):
+        subprocess.run(["apt", "remove","-y", service])
+        subprocess.run(["apt", "purge", "-y", service])
+
+remService("nginx")
+remService("gunicorn")
+remService("python3-flask")
+remService("git")
+
+subprocess.run(["apt","-y","autoremove"])
+</code>
+</pre>
+This is a small modification to the existing setup where I add git removal and run autoremove only once after all the services have been removed. Then here come the fun part, immutable files. Here is how I recover the firewall from the immutableFire file.
+<pre>
+<code>
+home=Path.home()
+immutables=Path.home()/"immutables"
+if immutables.exists():
+        print("Immutables folder exists")
+        immutableFire=immutables/"immutableFire.conf"
+
+        if immutableFire.exists():
+                print("immutableFIre here")
+                subprocess.run(["nft","flush","ruleset"])
+                loadFire=subprocess.run(["nft","-f",immutableFire])
+                fireCode=loadFire.returncode
+                if fireCode == 0:
+                        print("Firewall loaded")
+                        #shutil.move(immutableFire,immutables/"immutableFireOld")
+                        subprocess.run(["mv","--backup=numbered",immutableFire,immutables/"immutableFireOld"])
+                else:
+                        print("Firewall couldn't be loaded. Immutable file is left unchanged")
+        else:
+                print("immutable fire doesnt exist. skipping")
+</code>
+</pre>
+Here is what's happening:
+<ul>
+<li>First check if the immutables file exist. Its absence will mean that the main app never ran. In that case, we just skip</li>
+<li>Then I check if the immutableFire file exists. It's absence will either mean that the app ran at least once but didn't go far enough to create the file, or the user consented to proceed without creating it, or it has already been used to recover the firewall. But why wouldn't it still be here if it was used?</li>
+<li>If it exists, I flush the ruleset, and load the rules from the immutable backup.</li>
+<li>If the new rules load successfully, I rename the file to immutableFireOld so the same file can't be used again the next time this app runs.</li>
+</ul>
+And here is how I handled NGINX file:
+<pre>
+<code>
+immutableNGINX=immutables/"immutableNGINX.conf"
+        if immutableNGINX.exists():
+                print("immutableNGINX here")
+                try:
+                        shutil.copy2(immutableNGINX,"/etc/nginx/nginx.conf")
+                except:
+                        print("immutableNGINX file couldn't be used for recovery. The file is left unchanged")
+                else:
+                        print("immutableNGINX file was used to perform recovery")
+                        subprocess.run(["mv","--backup=numbered",immutableNGINX,immutables/"immutableNGINXOld"])
+                        #shutil.move(immutableNGINX,immutables/"immutableNGINXOld")
+        else:
+                print("immutableNginx doesn't exist. skipping")
+</code>
+</pre>
+This is similar to the firewall file but instead of loading it, I move it to the /etc/nginx directory and name it "nginx.conf". Then if the copy is successful, I rename this file too so it can't be used next time the app runs.  Like I mentioned before, immutable files are never deleted and old immutable files are not touched by my apps. Only the user can perform manual recovery from the files. 
+
+<h2>Testing</h2>
+Now that we have all the services, all the files , and appropriate NGINX and firewall rules in place, let's test it. Apache will listen on port 80 by default so if we just start it, we should be able to see something on the local network. We are not going to worry about <em>https</em> and port 443 right now because when we get the certificates, certbot will automatically configure it for us. Let's start nginx by:
+<pre>
+<code>
+startNGINX=subprocess.run(["systemctl", "start","nginx"])
+</code>
+</pre>
+That's it! Now if I plug in the IP address of the server on my browser, I should be able to see something. First, let me show you the working of the code on a fresh machine:
+
+<pre>
+<code>
+sushant@sushant:~$ sudo python3 DRapp.py 
+[sudo] password for sushant: 
+Immutables directory was created
+Installing:                     
+  nginx
+
+---------------------------SNIP---------------------------
+nginx successfully installed.
+Installing:                     
+  gunicorn
+---------------------------SNIP---------------------------
+gunicorn successfully installed.
+Installing:                     
+  python3-flask
+---------------------------SNIP---------------------------
+python3-flask successfully installed.
+Installing:                     
+  git
+---------------------------SNIP---------------------------
+git successfully installed.
+This is the default repo: https://github.com/1SUSHANT1/myProjects.git
+Enter 1 to use the default repo. Enter 2 to use a custom repo. Enter any other key to exit: 1
+myProjects
+Cloning into 'myProjects'...
+remote: Enumerating objects: 503, done.
+remote: Counting objects: 100% (197/197), done.
+remote: Compressing objects: 100% (154/154), done.
+remote: Total 503 (delta 38), reused 167 (delta 32), pack-reused 306 (from 2)
+Receiving objects: 100% (503/503), 83.73 MiB | 33.91 MiB/s, done.
+Resolving deltas: 100% (45/45), done.
+Remote Repo successfully cloned.
+Python file found at: myProjects/myPyScript.py
+Enter 1 if you want to provide a different Python file. Press any other key to use the default myPyScript.py file: 2
+NGINX file found at: myProjects/serverConfiguration/nginx/nginx.conf
+Enter 1 if you want to provide a different NGINX file. Press any other key to use the default nginx.conf file: 2
+Firewall file found at: myProjects/serverConfiguration/firewall/nftables.conf
+Enter 1 if you want to provide a different Firewall file. Press any other key to use the default nftables.conf file: 2
+Python file is at:  myProjects/myPyScript.py
+NGINX file is at:  myProjects/serverConfiguration/nginx/nginx.conf
+Firewall file is at:  myProjects/serverConfiguration/firewall/nftables.conf
+The python app syntax is valid
+The Firewall file syntax is valid
+Enter 1 if the NGINX file is the main configuration file. Enter 2 if it is the server configuration file: 2
+NGINX file copied to the nginx directory
+Filename is:  nginx.conf
+FilePath is:  /etc/nginx/conf.d/nginx.conf
+2026/09/24 01:28:29 [warn] 5693#5693: conflicting server name "sushantadk.com" on 0.0.0.0:80, ignored
+2026/09/24 01:28:29 [warn] 5693#5693: conflicting server name "www.sushantadk.com" on 0.0.0.0:80, ignored
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+The NGINX file syntax is valid
+Immutable firewall file doesn't exist. Creating now
+Immutable firewall file was created
+Immutable firewall backup created
+The firewall configuration file was correctly loaded into nft
+NGINX started
+</code>
+</pre>
+<p>Okay it took about 45 seconds and it already installed all the services, cloned the remote repo, located all the files, verified the syntax, made immutable backups and started nginx. Let's run the server's local IP address on a browser and see what happens.</p>
+<img src="../../Images/disasterRecovery/Screenshot From 2026-09-24 01-33-51.png" width="750" heigt="450">
+<p>YEEEEEE it works! we got a 403 Forbidden from nginx. From the terrific guy Sushant's server setup guide, I quote "Success! (kinda). Now we are getting 403 forbidden error instead of 404 not found. I am sure it is because of my user permissions. I will recursively add execute permissions to all the files on my website root directory for others, and try again." So all we have to do now is recursively add execute permissions and we should be good to go. Except, I can't follow his instruction exactly because my home directory looks like this: </p>
+<pre>
+<code>
+drwx------  7 sushant sushant 4096 Sep 24 01:28 sushant
+</code>
+</pre>
+So I will have to add read and execute permissions on my home directory as well. Me being crafty as I am, I did this:
+
+<pre>
+<code>
+curDir=Path.cwd()
+curDir=str(curDir)
+homeDir=curDir.split("/")
+strHome="/"+homeDir[1]+"/"+homeDir[2]
+pathHome=Path(strHome)
+
+subprocess.run(["chmod","o+rx",pathHome])
+subprocess.run(["chmod","-R","755",rootDir])
+</code>
+</pre>
+<p>Since I am running the code with sudo/root, the native python commands kept giving me location to root's home directory so I used cwd() which I know gives the directory where the process is running. Then I did some crafty parsing to create a path to the home directory and added read and execute permissions to others there. Then I also recursively added read and execute permissions for everyone in the directory pulled from GitHub. Security professionals might be losing their minds right now but we're going to ignore them for now.
+If I run the IP address again, nginx should return the correct webpage. Let's try it.</p>
+<img src="../../Images/disasterRecovery/Screenshot From 2026-09-24 01-53-36.png" width="750" heigt="450">
+
+<p>Yayyyyyyy!! it works! Now we can see my actual website being served on the local network. This is amazing! no way it took me like 45 seconds to rebuild this entire server. First time I did it, it took me like 4-5 days.</p>
+
+Now let me show you how the cleanUp app works:
+<pre>
+<code>
+sushant@sushant:~$ sudo python3 cleanUp.py 
+[sudo] password for sushant: 
+REMOVING:                       
+  nginx
+
+---------------------------SNIP---------------------------
+
+REMOVING:
+  gunicorn
+
+---------------------------SNIP---------------------------
+
+REMOVING:
+  python3-flask
+
+---------------------------SNIP---------------------------
+
+REMOVING:
+  git
+
+---------------------------SNIP---------------------------
+
+(Reading database ... 58182 files and directories currently installed.)
+Purging configuration files for git (1:2.47.3-0+deb13u1) ...
+REMOVING:                       
+  git-man        python-babel-localedata  python3-babel    python3-click   python3-gunicorn      python3-jinja2      python3-packaging   python3-pyinotify
+  liberror-perl  python3-asgiref          python3-blinker  python3-dotenv  python3-itsdangerous  python3-markupsafe  python3-pyasyncore  python3-werkzeug
+
+Summary:
+  Upgrading: 0, Installing: 0, Removing: 16, Not Upgrading: 51
+  Freed space: 36.7 MB
+
+---------------------------SNIP---------------------------
+
+Immutables folder exists
+immutableFIre here
+Firewall loaded
+immutableNginx doesn't exist. skipping
+sushant@sushant:~$ 
+</code>
+</pre><p>
+        
+        And just like that, the server is ...unbuilt?
+</p>
+
+
+<h2>Port Forwarding and HTTPS Certificate</h2>
+<p>Now let's get the user to set the port forwarding. First, lets acquire the current IP address of the machine. Generally, I use <code>ip addr</code> to see the current IP address but that command produces an output so big that it is very difficult to parse. So we will be using the command <code>hostname -I</code>. This produces an output like this: <code>192.168.1.208 172.17.0.1 2600:xxxxxxxxxx:cdbd </code>. The first one is the machine's IPv4 address. So we can run the command from the subprocess, capture the output and parse it. Something like this:</p>
+<pre>
+<code>
+ipad=subprocess.run(["hostname","-I"],
+capture_output=True,
+text=True
+).stdout;
+ipad=ipad.split()[0]
+print(ipad)
+</code>
+</pre>
+<p>
+        Capture the output, split on whitespaces and grab the first item. Now we ask the user to set port forwarding to this address.
+        Verifying if the port forwarding was done correctly without having an access to the router itself is not easy but it is still very much possible. During this phase tho, I'll skip the verification and trust the user. We'll get to that later.
+</p>
+
+<h3>HTTPS Certificate</h3>
+<p>
+        I will use certbot to get the HTTPS certificates. The instructions can be found here: <a href="https://certbot.eff.org/instructions?ws=nginx&os=pip">https://certbot.eff.org/instructions?ws=nginx&os=pip </a>
+        Basically, you have to run these commands:
+</p>
+<pre>
+<code>
+subprocess.run(["apt", "install", "python3", "python3-dev", "python3-venv", "libaugeas-dev", "gcc"])
+subprocess.run(["python3", "-m", "venv", "/opt/certbot/"])
+subprocess.run(["/opt/certbot/bin/pip", "install", "certbot", "certbot-nginx"])
+subprocess.run(["/opt/certbot/bin/certbot","--nginx"])
+</code>
+</pre>
+<p>
+        
+        There is a lot going on but this is what the documentation says so we stick to it. And when I run the app now, IT WORKS? THAT WAS IT? GUYS I DON'T THINK YOU'RE GOING TO BELIEVE THIS BUT IT IS PUBLICLY REACHABLE FROM THE INTERNET OVER HTTPS!
+</p>
+<p>I don't know why this Sushant guy did all this: https://www.sushantadk.com/SupportingDocuments/buildingAServer.html, wasting his time when he could've just run this script.</p>
+<p>
+        
+        Let's put verification around these subprocesses before we move on. Here are the functions.
+</p>
+<pre>
+<code>
+def certPrep():
+        result=0
+        a=subprocess.run(["apt", "install", "python3", "python3-dev", "python3-venv", "libaugeas-dev", "gcc"])
+        result=result+a.returncode
+        b=subprocess.run(["python3", "-m", "venv", "/opt/certbot/"])
+        result=result+b.returncode
+        c=subprocess.run(["/opt/certbot/bin/pip", "install", "certbot", "certbot-nginx"])
+        result=result+c.returncode
+
+        return result
+
+
+def installCert():
+        a=subprocess.run(["/opt/certbot/bin/certbot","--nginx"])
+        if a.returncode!=0:
+                print("Certificate installation has failed")
+                choice=input("Enter 1 to try again. Press any other key to skip: ")
+                if choice == "1":
+                        installCert()
+</code>
+</pre>
+<p>You can see that in the certPrep() function, instead of returning after a subprocess fails, I began collecting the fails. Good news, at one time I had achieved 100% failure. Plus this doesn't have any negative impact (I think) because a completed process will be skipped in the next run so it stays. And these are called like this:</p>
+<pre>
+<code>
+while True:
+        result=certPrep()
+        if result != 0:
+                print(f"Some certbot dependent actions have failed")
+                choice=input("Enter 1 to try again. Press any other key to skip certificate installation: ")
+                if choice =="1":
+                        continue
+                else:
+                        break
+        else:
+                installCert()
+                break
+
+</code>
+</pre>
+<h3>Checkpoint</h3>
+The app now does the following automatically:
+<ul>
+<li>Install required services</li>
+<li>Clone a GitHub repository</li>
+<li>Locate the required files</li>
+<li>Make immutable backups and regular backups</li>
+<li>Verify the syntax</li>
+<li>Move the files to appropriate destinations</li>
+<li>Recover files if something goes wrong</li>
+<li>Install Certbot dependencies</li>
+<li>Run certbot</li>
+</ul>
+<p>The user does provide some input but it's usually just entering either 1 or 2 assuming the directory structure, file names and syntax are correct. The time for it to finish building the server will differ depending on computer and internet, but I am proud to tell you that on my 2015 MacBook Air, it takes about 1 minute and 30 seconds to finish building a HTTPS certified publicly reachable web server from scratch.</p>
+
+<h3>Groups and permissions</h3>
+<p>The previous quick method of adding read and execute permissions to others and recursively applying "755" permissions to the whole directory was fragile was unsafe. Fragile because if the user was running the app one directory deeper, the permissions wouldn't work and "755" permissions is too open for the website root directory. So now, let's fix them by doing the following:</p>
+<ul>
+<li>Create a group</li>
+<li>Add NGINX to the group</li>
+<li>Construct a path to the current working directory</li>
+<li>Leave the root directory and home directory's permissions unchanged. </li>
+<li>Change the owning group of all the directories that follow to the new group we just created and add execute permissions to the group so the path can be traversed.</li>
+<li>When we get to the website root directory, recursively change the group to the new group and add read and execute permissions to the group so the group.</li>
+</ul><p>
+        
+        Not only is this more secure, this is the setup I use on my main server. Execute permissions to all the files may not be necessary, but the app can't distinguish which files need to be executed from the ones which don't so this is a small compromise.
+</p>
+<pre>
+<code>
+def addGroup(group):
+        gA=subprocess.run(["groupadd",group])
+        if gA.returncode==9:
+                return 0
+        else:
+                return gA.returncode
+
+
+def addToGroup(user,group):
+        aN=subprocess.run(["groupmod","-aU",user,group])
+        return aN.returncode
+
+curDir=Path.cwd()
+curDir=str(curDir)
+traverseThis=curDir.split("/")
+traverseThis.pop(0)
+
+group="webManagers"
+nginx="www-data"
+
+if addGroup(group)==0:
+        print("Group Added")
+        if addToGroup(nginx,group)==0:
+                print(f"{nginx} added to {group}")
+        else:
+                print(f"{nginx} couldn't be added to {group}")
+
+        constructPath=""
+        firstDir=True
+        for dir in traverseThis:
+                constructPath=constructPath+"/"+dir
+                print(f"Dir is: {constructPath}")
+                if firstDir==True:
+                        firstDir=False
+                else:
+                        subprocess.run(["chgrp","webManagers",constructPath])
+                        subprocess.run(["chmod","g+x",constructPath])
+        subprocess.run(["chgrp","-R","webManagers",rootDir])
+        subprocess.run(["chmod","-R","g+rx",rootDir])
+
+else:
+        print("Group wasn't added")
+</code>
+</pre>
+
+<p>Couple things that jump out are that exit code 9 from "groupadd" is treated as exit code 0, it is because code 9 means that the group already exists, which very likely means that the app was run before and the group was created in the previous run so it is treated as success.</p>
+<p>
+        
+        And there is things like <code>traverseThis.pop(0)</code> and <code>firstDir=True</code>. These are used to avoid changing permissions in the directories "/" and "/home". The only recursive changes are changing the owning group and owning group permissions to the website root directory.
+</p>
+<p>
+        
+        I noticed that NGINX was running as the user "www-data". Then I also installed apache2 to see what user it would run as and it also ran as the user "www-data". My previous experiences were: NGINX running as the user "nginx" and apache2 running as the user "apache". Because of this knowledge, the app will now also perform user detection to add the correct user to the group. Not now tho.. we'll skip that for now.
+</p>
+
+<h2>Updates to the configuration files</h2>
+<p>
+        Since I use users with different names on my servers, files kept running into "directory not found issue". For instance, the nginx file  I use on my backup server traverses directory like this:
+        <code>root /home/susie/myProjects/templates</code> but the experiment machine doesn't have the "susie" directory so it runs into an issue then I'll have to go back and fix the name. So I am changing all the configuration files to use the directory "/home/user/...." so not only me but anyone who runs this app using the "home/user" directory will not have any "directory not found" issues.
+</p><p>
+        
+        A sophisticated user may use his own directory with his custom files in which case this will still work because  the directory on the file will point to his directory. The main idea is that the directories the configuration files point to should exist. And the standard approach would be to run the app with default repository and default user where one can easily configure a fleet of servers.
+</p>
+
+<h2>Gunicorn and Flask</h2>
+<p>Gunicorn and Flask are the one of the final pieces of the puzzle. The good thing is, Flask doesn't need to be separately configured and Gunicorn is pretty easy to set up. Gunicorn file is located the same way other 3 were, and by the way there were actually 4 critical files including gunicorn file. The syntax is verified like this:</p>
+<pre>
+<code>
+while True:
+        checkFile=Path("/tmp/gunicorn.service")
+        shutil.copy(actGuLoc,checkFile)
+        verifyGunicorn=subprocess.run(["systemd-analyze","verify",checkFile])
+        checkFile.unlink()
+
+        if verifyGunicorn.returncode==0:
+                try:
+                        shutil.copy(actGuLoc,"/etc/systemd/system/gunicorn.service")
+                except:
+                        print("Gunicorn systemd service couldn't be created")
+                else:
+                        print("Gunicorn systemd service created")
+        else:
+                print("Gunicorn configuration file failed syntax check")
+                choice=input("Enter 1 to provide another file. Press any other key to skip")
+                if choice=="1":
+                        actGuLoc=locateFiles(rootDir,"gunicorn","Gunicorn",expGuConf)
+                        continue
+                else:
+                        break
+</code>
+</pre><p>
+        
+        We move the file to the <em>/tmp</em> directory, name it <em>gunicorn.service</em>, run the syntax check and store the exit message. Then we remove the copy and extract the return code. If it was success, we copy the file to <em>/etc/systemd/system/</em>, name it gunicorn.service which will be used to configure gunicorn using systemd.
+</p>
+
+<p>Then we also add a user which runs the Gunicorn service. Like this:</p>
+<code>
+<pre>
+gUser=input("Enter 1 to enter a custom gunicorn user. Press any other key to use the default \"gunicorn\" user: ")
+if gUser=="1":
+        gunicorn=input("Enter the name of the gunicorn user: ")
+else:
+        gunicorn="gunicorn"
+
+addGUser=subprocess.run(["useradd","-mr",gunicorn])
+if addGUser.returncode==0 or addGUser.returncode==9:
+        print("Gunicorn user created")
+else:
+        print("Failed to user Gunicorn user")
+</pre>
+</code><p>
+        
+        Notice the line <code>addGUser=subprocess.run(["useradd","-mr",gunicorn])</code>. If you think this is saying <em>"Useradd Mister Gunicorn"</em> you'd be totally wrong. The m and r flag are used to configure it as a system service with a home directory. Then we add the user to the <em>webManagers</em> group and start it just like we start NGINX.
+</p>
+
+<p>Since we have already verified that the python file exists, Gunicorn should automatically run the file considering the content of Gunicorn configuration file was correct. </p>
+<p>
+        
+        Since we are not checking the content because that would require a gigantic parser, we are just verifying the syntax and moving the files to the intended locations. But I can confirm that with a correct Gunicorn configuration file and the python app, the website will now also serve the dynamic content.
+</p>
+
+<h2>Startup</h2>
+<p>Now let's configure NGINX and Gunicorn to automatically run at boot. It's just two commands:</p>
+<pre>
+<code>
+def startup(service):
+        sT=subprocess.run(["systemctl", "enable", service])
+        if sT.returncode==0:
+                print(f"{service} was successfully enabled")
+        else:
+                print(f"{service} couldn't be enabled")
+
+startup("gunicorn")
+startup("nginx")
+</code>
+</pre><p>
+        
+        Well, not exactly two commands but this is it. Now even if you reboot your machine, the website will be served at startup, before even logging in to the machine.
+        <p>
+</p>
+        
+        Now I am done following that guy Sushant's server setup guide but something tells me that we're not done yet. What am I missing? Oh is it OPERATING SYSTEM DETECTION?
+</p>
+
+<h2>Operating System Detection</h2>
+<p>Yep you heard that correctly, next, I am integrating OS detection on the app. This script, as it is only works on a Debian server. Although my backup server runs Debian, my production server runs Alpine Linux. For that reason, the app will be modified to recognize an Alpine server and configure it the Alpine way, the right way if you may(did he hit his head with something?). Plus, since Debian and Ubuntu are similar, I might also add Ubuntu but Alpine and Debian will be my main goal. </p>
+
+<p>
+        
+        <b>Side note:</b> I currently don't have a spare Alpine server to develop and verify as we go. Development will be done with an Alpine server in reference but testing will only be done after the development has finished.
+</p>
+
+<h3>Detection</h3>
+<p>We are going to have to watch out for things like package repositories, directory structures, different services, different commands, etc. But the app is not going to be like: <em> if debian: this, elif alpine, that, ........</em> on every line. Instead it will be modified to perform the detection and determine what it is going to do for the rest of the runtime. Let's start with the detection. We use the file <em>/etc/os-release</em> to get the info about a Linux OS. But that file contains so much more than what I actually need, so we are going to have to do some parsing. Here is the contents of the file:</p>
+<pre>
+<code>
+root@sushant:/home/user# cat /etc/os-release 
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+-----------snip-----------------
+ID=debian
+---------------snip-----------------
+</code>
+</pre><p>
+        
+        I am only interested in the ID part so the way I am going to parse it is by splitting every line at "=". If the first value I get is "ID", I simply store the second value which will be the operating system. Very simple, something like:
+</p>
+<pre>
+<code>
+OS=""
+with open ("/etc/os-release") as file:
+        for line in file:
+                idField=line.strip().split("=")
+                if idField[0]=="ID":
+                        OS=idField[1]
+                        break
+</code>
+</pre>
+<p>Immutable directory creation process should be same on both so let's move on to installThis() function. Debian uses apt, but alpine uses apk, so the function will be modified from: <em>def installThis(service)</em> to <em>installThis(service,OS)</em>. Nothing too crazy, something like this:</p>
+
+<h3>Package repositories</h3>
+<pre>
+<code>
+def installThis(service,OS):
+        while True:
+                if OS=="debian":
+                        code=(subprocess.run(["apt", "install", "-y", service])).returncode
+                elif OS=="alpine":
+                        code=(subprocess.run(["apk","add",service])).returncode
+                else:
+                        print("Operating system not supported. Fatal. Abort")
+                        exit()
+</code>
+</pre><p>
+        
+        This should install the services on both the servers correctly. Let's move on.
+</p>
+
+<p>Cloning the GitHub repo, expected file locations, actual file locations, and python file syntax check should be the same on both distributions. Let's move to the firewall.</p>
+
+<h3>Firewall</h3><p>
+        
+        The firewall name on Debian is "nftables.conf", but on Alpine, it is "nftables.nft". Luckily, since both are managed by nft, everything else should be the same. (P.S: Future Sushant might come and beat me with a stick if this doesn't work). I created a new section:
+</p>
+<pre>
+<code>
+if OS=="debian":
+        firewallFile="nftables.conf"
+elif OS=="alpine":
+        firewallFile="nftables.nft"
+</code>
+</pre>
+<p>As I move forward, I will add more stuff here so we can just use them in the app without having to worry about which OS it is every time. After the update, this line was changed: <code>actFiConf=locateFiles(rootDir,firewallFile,"Firewall", expFiConf)</code>, and after some minor substitutions on the firewall loading section, it is behaving correctly on Debian. We'll have to do tests on an actual Alpine server but we do know that Debian is detected properly and firewall file verified and loaded properly.</p>
+
+<h3>NGINX</h3><p>
+        
+        NGINX is pretty simple too. The major difference here is in the file path, not the file names. Both distributions do use the file <em>nginx.conf</em> and even the main configuration path and file are same at: <em>etc/nginx/nginx.conf</em>. For the server file however, the path on Debian is: <em>/etc/nginx/conf.d/nginx.conf</em>, but the path on Alpine is:<em>/etc/nginx/http.d/nginx.conf</em>. Here is the logic, the previous code was updated to:
+</p>
+<pre>
+<code>
+if OS=="debian":
+        firewallFile="nftables.conf"
+        nginxSFLoc="/etc/nginx/conf.d"
+elif OS=="alpine":
+        firewallFile="nftables.nft"
+        nginxSFLoc="/etc/nginx/http.d"
+</code>
+</pre>
+<p>Then I walked around substituting every <em>"/etc/nginx/conf.d"</em> with <em>nginxSFLoc</em> and it worked correctly on Debian. I didn't like that, I was expecting "kaboom", but whatever.</p>
+
+<h3>Gunicorn</h3><p>
+        
+        Now this one is interesting. The service file for Gunicorn has different content, it is in different paths, and it had different names on both distributions since it is run directly by the OS service manager. On Alpine, it is run by open-rc at <em>/etc/init.d/gunicorn</em>, and on Debian, it is run by systemd at: <em>/etc/systemd/system/gunicorn.service</em> plus, the content is different, so the provided repository should have distribution specific files for gunicorn. And, just remembered, syntax check is different on different servers. Because there is so much difference, I will create different functions to handle it rather than modifying the one I currently have. Here are the changes:
+</p>
+<pre>
+<code>
+-------------------snip---------------
+elif OS=="alpine":
+        gunicornFileName="gunicornAlpine"
+---------------snip--------------
+actGuLoc=locateFiles(rootDir,gunicornFileName,"Gunicorn",expGuConf)
+------------------------snip-----------------
+if OS=="debian":
+        gunicornDeb(actGuLoc,rootDir,expGuConf)
+elif OS=="alpine":
+        gunicornAlp(actGuLoc,rootDir,expGuConf)
+</code>
+</pre><p>
+        
+        So now the locate function will try to locate distribution specific gunicorn files. <em>gunicornDebian</em> for Debian and <em>gunicornAlpine</em> for Alpine. If they don't exist, then the user can still the provide the file path so we are fine there.
+        And the new function looks like:
+</p>
+<code>
+<pre>
+def gunicornAlp(actGuLoc,rootDir,expGuConf):
+        while True:
+                checkFile=Path("/tmp/gunicorn")
+                shutil.copy(actGuLoc,checkFile)
+                verifyGunicorn=subprocess.run(["sh","-n",checkFile])
+                checkFile.unlink()
+
+                if verifyGunicorn.returncode==0:
+                        try:
+                                shutil.copy(actGuLoc,"/etc/init.d/gunicorn")
+                        except:
+                                print("Gunicorn systemd service couldn't be created")
+                                break
+                        else:
+                                print("Gunicorn systemd service created")
+                                break
+                else:
+                        print("Gunicorn configuration file failed shell syntax check")
+                        choice==input("Enter 1 to ignore and proceed. Press any other key to provide another file")
+                        if input=="1":
+                                try:
+                                        shutil.copy(actGuLoc,"/etc/init.d/gunicorn")
+                                except:
+                                        print("Gunicorn systemd service couldn't be created")
+                                        break
+                                else:
+                                        print("Gunicorn systemd service created")
+                                        break
+                        else:
+                                actGuLoc=locateFiles(rootDir,"gunicornAlpine","Gunicorn",expGuConf)
+                                continue
+</code>
+</pre>
+<p>I know someone is complaining about the little copy paste there but we're going to ignore them forever. They more important things to notice are that the file syntax is being checked by shell and there is a option to proceed even if the check fails. This is because open-rc doesn't have something equivalent to <em>systemd-analyze</em> on systemd, so the app just checks if the file is a valid shell file. Since open-rc init files are generally shell, it should work but if someone passes a python file or an executable, since they can still work but I can't check them, the users can ignore the gunicorn syntax check and proceed.</p>
+
+<h3>Users</h3><p>
+        
+        Let's address the problem with NGINX user. I probably could hard code the usernames and get away with it but getting the username which is currently running NGINX might be a better idea. After some research, I found out the python library which could do exactly that; psutil. I use psutil to get info about the running processes, find the service name "nginx", see if it is a worker process,  (because the master process is root and that's not what we need) and catch the worker's username. Something like this:
+</p>
+<pre>
+<code>
+nginx=""
+for process in psutil.process_iter(["name", "username", "cmdline"]):
+        info = process.info
+        cmdline = " ".join(info["cmdline"] or [])
+
+        if info["name"] == "nginx" and "worker process" in cmdline:
+                nginx = info["username"]
+                break
+else:
+        if OS=="debian":
+                nginx="www-data"
+        elif OS=="alpine":
+                nginx="nginx"
+</code>
+</pre><p>
+        
+        This does have a fail-safe where if psutil fails for whatever reason, we proceed with standard known usernames for each distributions. And this made me realize something because I ran into python module not found error. It means that the python modules I am importing:
+</p>
+<pre>
+<code>
+import subprocess
+import getpass
+from pathlib import Path
+import shutil
+import psutil
+</code>
+</pre>
+<p>These are the dependencies of my app, so before importing these, I have to detect the OS, install them, and only then import them. Sounds like tomorrow's problem tho ngl.</p>
+<p>
+        
+        Next, the process for adding users, groups, running groupmod, and getting HTTPS certificates should be same on both distributions. So let's move on to using the appropriate system manager to run the services.
+</p>
+
+<h3>System Manager Starts Services</h3>
+<p>The previous logic was replaced by this function:</p>
+<pre>
+<code>
+def startSv(service,OS):
+        if OS=="debian":
+                sR=subprocess.run(["systemctl", "start",service])
+                sT=subprocess.run(["systemctl", "enable", service])
+        elif OS=="alpine":
+                sR=subprocess.run(["rc-service",service,"start"])
+                sT=subprocess.run(["rc-update","add",service,"default"])
+        if sR.returncode==0:
+                print(f"{service} was successfully started")
+        else:
+                print(f"{service} couldn't be started")
+        if sT.returncode==0:
+                print(f"{service} was successfully enabled")
+        else:
+                print(f"{service} couldn't be enabled")
+</code>
+</pre><p>
+        
+        It runs the service from the appropriate system manager, and also adds the services to startup.
+</p> 
+<p>But before I declare phase 1 complete, we have something remaining.</p>
+
+<h3>Remaining: Python Libraries and Port Forwarding detection and Testing on Alpine server</h3>
+
+
+<h3>Port Forwarding</h3>
+<p>I did create a port forwarding detection mechanism, you can read about it here: <a href="https://www.sushantadk.com/SupportingDocuments/portForwardingDetector.html">Port Forwarding Detector</a>. But then I noticed that I actually don't need it. Look at this:</p>
+<pre><code>
+portfor=input(f"Enter 1 if you successfully set the port forwarding. Press any other key to exit: ")
+if(portfor!="1"):
+        exit()
+
+#################################RUN CERTBOT####################
+while True:
+        result=certPrep()
+        if result != 0:
+                print(f"Some certbot dependent actions have failed")
+                choice=input("Enter 1 to try again. Press any other key to skip certificate installation: ")
+                if choice =="1":
+                        continue
+                else:
+                        break
+        else:
+                installCert()
+                break
+</code>
+</pre>
+<p>I am asking if the user has set the port forwarding and if he has, I direct him to certbot. The reason I am asking if the port forwarding has been set is to make sure certbot runs properly. But the goal I am trying to achieve can be done with only certbot. If port forwarding is enabled, certbot may succeed, and if port forwarding has not been enabled, certbot will fail. That's it! I don't need a separate port forwarding checking mechanism for it. </p>
+<p>
+        
+        I modified the code like this:
+</p>
+<pre>
+<code>
+#################################RUN CERTBOT####################
+while True:
+        portfor=input(f"Enter 1 if you successfully set the port forwarding to {ipad}. Press any other key to skip HTTPS certificates: ")
+        if(portfor!="1"):
+                break
+
+        result=certPrep()
+        if result != 0:
+                print(f"Some certbot dependent actions have failed")
+                choice=input("Enter 1 to try again. Press any other key to skip certificate installation: ")
+                if choice =="1":
+                        continue
+                else:
+                        break
+        else:
+                installCert()
+                break
+</code>
+</pre>
+<p>Now the port forwarding detection is up to certbot. If the certbot process fails and the user wants to try again, he will again be prompted if he has set the port forwarding or not. If he lies and says port forwarding is configured when it actually isn't, certificate acquisition fails and he'll be prompted again. Problem solved.</p>
+
+<h3>Python Modules Bootstrapping</h3>
+<p>First, let's round up all the python modules that are being used on the app. They are:</p>
+<ul>
+<li>import subprocess</li>
+<li>import psutil</li>
+<li>import shutil</li>
+<li>from pathlib import Path</li>
+<li>import getpass</li>
+</ul>
+<p>When I imported psutil and ran into module not found error, I freaked out and thought that every other module also had to be separately installed, but come to find out the other four are standard Python libraries installed when Python is installed. So we really only need to bootstrap psutil module. If I find that assuming the other four would already be there would lead into a problem, I will bootstrap them too but I'll leave it for now. </p>
+
+<p>Let's install python3-pip using the same abstraction which has been used throughout the app, which is:</p>
+<pre>
+<code>installThis("python3-pip",OS)
+</code>
+</pre>
+<p>Now no matter if it is Alpine or Debian, pip is installed. After pip is installed, we don't care about the distro because we'll be using pip to install python packages. I wrote the function:</p>
+<pre>
+<code>
+def installPyPackage(package):
+        code=subprocess.run(["pip","install",package]).returncode
+        if code ==0:
+                print(f"{package} sucessfully installed")
+        else:
+                print(f"{package} installation failed")
+                choice=input("Enter 1 to try again. Enter any other key to quit")
+                if choice == "1":
+                        installPyPackage(package)
+                else:
+                        print(serice,"couldn't be installed. Fatal Abort")
+                        exit()
+</code>
+</pre>
+<p>And called it as: </p>
+<pre><code>installPyPackage(psutil)</code></pre>
+<p>And the OS hit me with:</p>
+
+<pre>
+<code>
+error: externally-managed-environment
+
+× This environment is externally managed
+╰─> To install Python packages system-wide, try apt install
+    python3-xyz, where xyz is the package you are trying to
+    install.
+    ------------------------------snip-------------------------------
+</code>
+</pre>
+<p>Yep! we need venv. Like the error message suggests, it is possible to perform a system wide installation but I'm pretty sure Alpine will slap me in my face if I do it, plus it's not a good practice and I may need more packages so I'll have to go with creating a venv. This gives us 3 new cases:</p>
+<ol>
+<li>A thoughtful user has already ran the app on a venv, in which case we don't have to do anything.</li>
+<li>We are not in a venv but the venv is here. In this case, we just activate it and move on.</li>
+<li>We are not in a venv and no venv exists. Then we'll have to create one, activate it and move on.</li>
+</ol>
+<p>Let's implement it.</p>
+<pre>
+<code>
+def handleVenv():
+        venv=Path("venv")
+        activationPath=venv/"bin/activate"
+
+        if sys.prefix != sys.base_prefix:
+                return
+
+        if not venv.exists():
+                subprocess.run(["python3","-m","venv",str(venv)])
+
+        python=venv/"bin"/"python"
+        os.execv(str(python),[str(python), *sys.argv])
+</code>
+</pre>
+<p>It wasn't as easy as running activate from the terminal. The app had to be relaunched from the venv instead of executing activate command. But luckily, there was a module "os" which made the process easy. However, I did have to use more python libraries, but it's okay because "os" and "sys" are also standard libraries. installPyPackage() also went under some modification:</p>
+<pre>
+<code>
+subprocess.run([sys.executable,"-m","pip","install",package]).returncode
+</code>
+</pre>
+<p>And from now on, new Python modules will be added like this:</p>
+<pre>
+<code>
+installThis("python3-pip",OS)
+installThis("python3-venv",OS)
+
+handleVenv()
+installPyPackage("psutil")
+import psutil
+</code>
+</pre>
+<p>We start importing new modules only after setting up pip, venv, and package installation. That takes care of the bootstrapping problem. Now for the last part, the app does work on Debian but we have to test it on Alpine.</p>
+
+<h3>Testing the app on Alpine Linux</h3>
+<p>First, let's fix one problem which will make it obviously break on Alpine Linux. As I was building the  <a href="https://www.sushantadk.com/SupportingDocuments/portForwardingDetector.html">Port Forwarding Detector</a>, I realized this: <code>subprocess.run(["hostname","-I"]</code> doesn't work on Alpine's BusyBox because it doesn't have the implementation for the option "-I". However, I do already have a solution:</p>
+
+<pre>
+<code>
+ipaddr=subprocess.run(["ip","-4","-o","addr","show","scope","global"],
+capture_output=True,
+text=True).stdout.splitlines()
+
+localIPs=[]
+for line in ipaddr:
+        temp = line.split("inet")[1].split("/")[0].strip()
+        localIPs.append(temp)
+
+</code>
+</pre>
+<p>Seems ugly but it is necessary.  And it should work on Alpine. No guarantees.</p>
+
+
+<h3>Alpine Linux Live USB test</h3>
+<p>I am testing this app on a standard Alpine Linux Live USB. On the first run, here are some of the problems that occurred:</p>
+<ol>
+<li>Packages gunicorn, python3-flask, python3-pip,python3-venv didn't exist in apk.</li>
+<li>It didn't have nftables by default.</li>
+<li>useradd, groupadd, groupmod didn't work.</li>
+<li>The add had apt implementation in the Certprep() function(oops)</li>
+</ol>
+<h4>The Fixes:</h4>
+<p>The problems 1 and 2 were fixed like this:</p>
+<pre>
+<code>
+installThis("nftables",OS)
+if OS=="debian":
+        installThis("python3-flask",OS)
+        installThis("gunicorn",OS)
+        installThis("python3-pip",OS)
+        installThis("python3-venv",OS)
+elif OS=="alpine":
+        installThis("py3-flask",OS)
+        installThis("py3-gunicorn",OS)
+        installThis("py3-pip",OS)
+        installThis("py3-virtualenv",OS)
+</code>
+</pre>
+<p>The checks are a bit redundant because we are checking the OS here and again in the installThis() function. However, it is necessarily if I want to keep the installThis() abstraction. The alternative would be to separate it into two functions, perhaps installThisDebian() and installThisAlpine(), but that would just be too much code if I decide to add support for any other OS. These checks stay. </p>
+
+<p>I do actually use useradd, groupadd, and groupmod on my Alpine server, but I had overlooked the fact that these are not standard BusyBox implementation. Instead of adding these implementations, let's modify the app to just use the Alpine standard adduser and addgroup command. The fixes look like this:</p>
+<pre>
+<code>
+
+if OS=="debian":
+        addGUser=subprocess.run(["useradd","-mr",gunicorn])
+elif OS=="alpine":
+        addGUser=subprocess.run(["adduser","-S",gunicorn])
+------------------------------------snip------------------------------
+def addGroup(group,OS):
+        if OS=="debian":
+                gA=subprocess.run(["groupadd",group])
+                if gA.returncode==9:
+                        return 0
+        elif OS=="alpine":
+                gA=subprocess.run(["addgroup",group])
+                if gA.returncode==1:
+                        return 0
+
+        return gA.returncode
+----------------------------------snip---------------------------------
+def addToGroup(user,group,OS):
+        if OS=="debian":
+                aN=subprocess.run(["groupmod","-aU",user,group])
+        elif OS=="alpine":
+                aN=subprocess.run(["adduser",user,group])
+        return aN.returncode
+
+</code>
+</pre>
+<p>Alpine returns 1 if the group already exists. To preserve idempotency, we treat it as a success code, just like we treated exit code 9 on Debian as success.</p>
+
+<p>The last problem was the easiest of them all:</p>
+<pre>
+<code>
+def certPrep(OS):
+        result=0
+        if OS=="debian":
+                a=subprocess.run(["apt", "install", "python3", "python3-dev", "python3-venv", "libaugeas-dev", "gcc"])
+        elif OS=="alpine":
+                a=subprocess.run(["apk", "add", "python3", "python3-dev", "py3-virtualenv", "augeas-dev", "gcc"])
+</code>
+</pre>
+<p>Let's apply these changes and run it on a newer Alpine Live USB again.</p>
+
+<h4>Good News!</h4>
+<p>The app now successfully runs to completion on a bare bone minimal Alpine server. Well, Almost. I couldn't check if certbot works properly because I am using USB tethering to provide the machine internet because installing new drivers requires a reboot which I can't do in the Live USB method. But EVERYTHING except the HTTPS certificate acquisition works!! Now lets' test it on my production server where we can test it fully; it is mature, I trust it. Also, I am going to cripple my server because I'm pretty sure the app can recover it.</p>
+
+<pre>
+<code>
+Gucci@mysweetserver:/home/user$ sudo apk del nginx
+The following packages will be REMOVED:
+  nginx nginx-openrc nginx-vim
+After this operation, 1374 KiB of disk space will be freed.
+Do you want to continue [Y/n]? Y
+(1/3) Purging nginx-openrc (1.30.6-r0)
+(2/3) Purging nginx-vim (1.30.6-r0)
+(3/3) Purging nginx (1.30.6-r0)
+Executing busybox-1.38.0-r7.trigger
+OK: 1811.7 MiB in 598 packages
+Gucci@mysweetserver:/home/user$ sudo rm /etc/init.d/gunicorn 
+Gucci@mysweetserver:/home/user$ ls
+github           myWebsite        recovery_backup  secrets          useless
+Gucci@mysweetserver:/home/user$ sudo rm -r myWebsite/
+Gucci@mysweetserver:/home/user$ sudo rm -r /etc/letsencrypt/
+Gucci@mysweetserver:/home/user$ sudo apk del certbot-apache
+The following packages will be REMOVED:
+  augeas-libs certbot certbot-apache certbot-apache-pyc certbot-pyc py3-acme py3-acme-pyc py3-augeas py3-augeas-pyc py3-certifi py3-certifi-pyc py3-cffi py3-cffi-pyc py3-charset-normalizer py3-charset-normalizer-pyc py3-configargparse
+  py3-configargparse-pyc py3-configobj py3-configobj-pyc py3-cparser py3-cparser-pyc py3-cryptography py3-cryptography-pyc py3-distro py3-distro-pyc py3-distutils-extra py3-distutils-extra-pyc py3-idna py3-idna-pyc py3-josepy
+  py3-josepy-pyc py3-openssl py3-openssl-pyc py3-packaging py3-packaging-pyc py3-parsedatetime py3-parsedatetime-pyc py3-parsing py3-parsing-pyc py3-pyrfc3339 py3-pyrfc3339-pyc py3-requests py3-requests-pyc py3-setuptools
+  py3-setuptools-pyc py3-typing-extensions py3-typing-extensions-pyc py3-tz py3-tz-pyc py3-urllib3 py3-urllib3-pyc
+</code>
+</pre>
+<p>You can see that I removed nginx, gunicorn open-rc service, my website's root directory, whole letsencrypt directory, and certbot. Let's now run the app and see what happens.</p>
+
+<pre>
+<code>
+Gucci@mysweetserver:/home/user$ sudo python3 DRapp.py 
+Operating system: "nura"
+Immutables directory was created
+Operating system not supported. Fatal. Abort
+</code>
+</pre>
+<p>The postmarketOS people changed their name and looks like also the distro's name to nura few days ago. But beneath all this, it is still Alpine Linux. This is how I fixed this issue:</p>
+<pre>
+<code>
+with open ("/etc/os-release") as file:
+        for line in file:
+                idField=line.strip().split("=")
+                if idField[0]=="ID":
+                        OS=idField[1].strip('"')
+                        break
+if OS=="nura":
+        OS="alpine"
+</code>
+</pre>
+<p>Yep! clap clap.</p>
+<p>Let's run it again. </p>
+<pre>
+<code>
+Gucci@mysweetserver:/home/user$ sudo python3 DRapp.py 
+Operating system: alpine
+-------------------------------------snip---------------------------------------
+This is the default repo: https://github.com/1SUSHANT1/myProjects.git
+Enter 1 to use the default repo. Enter 2 to use a custom repo. Enter any other key to exit: 1
+myProjects
+Directory already exists
+Enter 1 to work with the existing directory. Enter 2 to remove the existing directory and get a fresh copy. Press any other key to restart git clone: 1
+Using the existing directory
+Gunicorn file found at: myProjects/serverConfiguration/gunicorn/gunicornAlpine
+Enter 1 if you want to provide a different Gunicorn file. Press any other key to use the default gunicornAlpine file: 2
+Python file found at: myProjects/myPyScript.py
+Enter 1 if you want to provide a different Python file. Press any other key to use the default myPyScript.py file: 2
+NGINX file found at: myProjects/serverConfiguration/nginx/nginx.conf
+Enter 1 if you want to provide a different NGINX file. Press any other key to use the default nginx.conf file: 2
+Firewall file found at: myProjects/serverConfiguration/firewall/nftables.nft
+Enter 1 if you want to provide a different Firewall file. Press any other key to use the default nftables.nft file: 2
+The python app syntax is valid
+The Firewall file syntax is valid
+-------------------------------------snip---------------------------------------
+Please enable port forwarding from your router to one of the suitable IP Addresses below on TCP port 80 and TCP port 443 
+This will allow HTTP and HTTPS traffic from the internet to reach the computer
+172.16.42.1
+192.168.1.3
+Enter 1 if you successfully set the port forwarding to one of the addresses above. Press any other key to skip HTTPS certificates: 1
+The following NEW packages will be installed:
+  augeas-dev augeas-libs libxml2-dev libxml2-utils python3-dev xz-dev
+-------------------------------------snip---------------------------------------
+Saving debug log to /var/log/letsencrypt/letsencrypt.log
+Enter email address or hit Enter to skip.
+ (Enter 'c' to cancel): 
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Please read the Terms of Service at:
+https://letsencrypt.org/documents/LE-SA-v1.8-July-06-2026.pdf
+You must agree in order to register with the ACME server. Do you agree?
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+(Y)es/(N)o: Y
+Account registered.
+
+Which names would you like to activate HTTPS for?
+We recommend selecting either all domains, or all domains in a VirtualHost/server block.
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+1: sushantadk.com
+2: www.sushantadk.com
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Select the appropriate numbers separated by commas and/or spaces, or leave input
+blank to select all options shown (Enter 'c' to cancel): 
+Requesting a certificate for sushantadk.com and www.sushantadk.com
+
+Successfully received certificate.
+Certificate is saved at: /etc/letsencrypt/live/sushantadk.com/fullchain.pem
+Key is saved at:         /etc/letsencrypt/live/sushantadk.com/privkey.pem
+This certificate expires on 2027-01-27.
+These files will be updated when the certificate renews.
+
+Deploying certificate
+Successfully deployed certificate for sushantadk.com to /etc/nginx/http.d/nginx.conf
+Successfully deployed certificate for www.sushantadk.com to /etc/nginx/http.d/nginx.conf
+Congratulations! You have successfully enabled HTTPS on https://sushantadk.com and https://www.sushantadk.com
+
+NEXT STEPS:
+- The certificate will need to be renewed before it expires. Certbot can automatically renew the certificate in the background, but you may need to take steps to enable that functionality. See https://certbot.org/renewal-setup for instructions.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+If you like Certbot, please consider supporting our work by:
+ * Donating to ISRG / Let's Encrypt:   https://letsencrypt.org/donate
+ * Donating to EFF:                    https://eff.org/donate-le
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ * WARNING: nginx has already been started
+ * rc-update: nginx already installed in runlevel `default'; skipping
+nginx was successfully started
+nginx was successfully enabled
+ * WARNING: gunicorn has already been started
+ * rc-update: gunicorn already installed in runlevel `default'; skipping
+gunicorn was successfully started
+gunicorn was successfully enabled
+Gucci@mysweetserver:/home/user$ 
+</code>
+</pre>
+
+<h3>But Does it work?</h3>
+<pre><code>
+Gucci@mysweetserver:/home/user$ curl -I https://sushantadk.com
+HTTP/2 200 
+date: Thu, 29 Oct 2026 05:17:27 GMT
+content-type: text/html
+server: cloudflare
+x-xss-protection: 1; mode=block
+last-modified: Thu, 29 Oct 2026 05:02:34 GMT
+x-frame-options: SAMEORIGIN
+accept-ranges: bytes
+cf-cache-status: DYNAMIC
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=5GpbMNf1ovCpYMjKYGoCcjWy3x9j1PP%2BnvVFBnZ6hQgpNo2cEjow2t%2FXEUTRKiRHCE%2ByC%2B4fhzO80o61YqEQtBle%2FsqZWTzvhUE4idFJA84sIqNLBRY1KJKttWb%2BAHuQpgB%2FWEcrlb2Jm8CmHw%3D%3D"}]}
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+expect-ct: max-age=86400, enforce
+referrer-policy: same-origin
+x-content-type-options: nosniff
+cf-ray: a51fb6c46a09d9f6-EWR
+alt-svc: h3=":443"; ma=86400
+</pre></code>
+<p>Damn! did it really restore my vandalized server?</p>
+
+<h2>Success!</h2>
+<p>The app can now build and configure fully functional HTTPS web servers with a cross-platform support for Debian, Alpine Linux, and Nura. To be fair, I discovered it works on Nura when I found out Nura was a thing, about 5 mins ago. But we are not done still. I noticed Nura does this:</p>
+<pre><code>
+The following NEW packages will be installed:
+  py3-gunicorn py3-gunicorn-pyc
+Need to download 558 KiB of packages.
+After this operation, 1731 KiB of additional disk space will be used.
+Do you want to continue [Y/n]? Y
+</code>
+</pre>
+<p>So this means we can pass the option "Y" when we run the subprocess, and this is the only difference I noticed from a real Alpine Linux server. Next, I will add this functionality, advance the cleanUp app, prepare a README, and add some custom configurations for myself before declaring phase 1 complete. But between you and me, it is already complete.</p>
+</body>
+</html>

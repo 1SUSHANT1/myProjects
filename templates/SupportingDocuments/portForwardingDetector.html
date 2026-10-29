@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Port Forwarding Detector</title>
+
+   <link rel = "stylesheet" href="../../static/style.css"> 
+</head>
+<body>
+    <h1>Port Forwarding Detector</h1>
+
+    <h2>About</h2>
+<p>I am building a port forwarding detector. I am aware of the websites like <a href="canyouseeme.org">canyouseeme.org</a> and but I couldn't find a reliable Linux tool that can perform port forwarding detector so here I am building one myself. This is a supporting document for the project <a href="https://www.sushantadk.com/Projects/disasterRecoveryApp.html">Python Based Linux Server Disaster Recovery App</a>. This tool is expected to work on Alpine Linux and Debian.</p>
+
+<h3>IP address retreival</h3><p>
+    
+    hostname -I directly gives you the global IP addresses of the machine on Debian which can be easily parsed. On Alpine Linux however, the BusyBox implementation does not have "-I" option. To make this tool work on both distributions, we have to find a command that works on both. Obviously <code>ip addr</code> works but it's output is big and difficult to parse. So we will use this command:
+</p>
+<pre><code>ip -4 -o addr show scope global</code></pre>
+<p>This command works on both distros and produces a manageable output, resembling this:</p>
+
+<pre>
+<code>
+Gucci@mysweetserver:/home/user$ ip -4 -o addr show scope global
+2: usb0    inet 172.16.42.1/16 brd 172.16.255.255 scope global usb0\       valid_lft forever preferred_lft forever
+4: wlan0    inet 192.168.1.3/24 brd 192.168.1.255 scope global dynamic noprefixroute wlan0\       valid_lft 57590sec preferred_lft 57590sec
+</code>
+</pre>
+<p>The pattern is simple, we have to get the string between "inet" and "/". Very simple, just like this:</p>
+<pre>
+<code>
+import subprocess
+
+ipaddr=subprocess.run(["ip","-4","-o","addr","show","scope","global"],
+capture_output=True,
+text=True).stdout.splitlines()
+
+localIPs=[]
+for line in ipaddr:
+        temp = line.split("inet")[1].split("/")[0].strip()
+        localIPs.append(temp)
+</code>
+</pre>
+<p>Now we have a way to retrieve the IP addresses  on both Debian and Alpine Linux. Notice I am using an array to store the IP addresses. It is because we are going to be telling the user to set port forwarding to one of these addresses. Then we use the detector to figure out which IP address the user chose.</p>
+
+
+<h3>tcpdump on port 80</h3>
+<p>Now, we run tcpdump which will let us see all the incoming connections to our machine. The nice thing about tcpdump is that it doesn't need to bind to a port. It can monitor traffic on all ports without binding. We will use tcpdump to see if we are getting the traffic to a specific port. The specific port in this case will be port 80. On the project, I am at the stage after nginx has been installed and before getting the HTTPS certificates. At this stage, we ask the user to set port forwarding on port 80 on any one of the addresses above. If tcpdump required a bind, we may have had to ask the user to set port forwarding to a port other then 80 or stop nginx to perform the detection, but since tcpdump is a kernel level tool, we are saved of that hassle. The command is very simple:</p> 
+<pre>
+<code>
+tcpdump -i any -Q in
+</code>
+</pre>
+<p>It monitors incoming traffic on all ports. However, this has some problems. Sometimes, it outputs the machine name instead of the IP address, tcpdump may take some time to process the packet before writing, and the output isn't easily parseable. We don't any of that so we add the flags -nn to always write IP address and not host name, -l write in lines, and -U to write without any buffering. So the updated command looks like this:</p>
+<pre>
+<code>
+sudo tcpdump -i any -nn -Q in -U -l  
+</code>
+</pre>
+<p>The subprocess module can run the command, but who watches it, and how is detection done?</p>
+
+<h2>The Big Idea</h2>
+<p>Here is the plan. We run tcpdump which is capable of reporting all the connection to  our machine. Then we try to connect to port 80 on our public IP address. Then we read tcpdump to see if there was a connection to our device on port 80. If any connection is reported coming from out public IP address to out host machine on port 80, port forwarding must be on.</p>
+
+<h3>Public IP address</h3>
+<p>Let's figure out out public IP address. It's just this command: <em>curl -4 ifconfig.me</em>. Translating to subprocess and capturing output, it looks like:</p>
+<pre>
+<code>
+pubIP=subprocess.run(["curl","-4","ifconfig.me"],
+capture_output=True,
+text=True).stdout
+</code>
+</pre>
+<p>Now we have the public IP address, let's edit our tcpdump command further to only report the TCP connections from our public IP address to port 80. something like this:</p>
+<pre>
+<code>
+tcpdump=subprocess.Popen(["tcpdump", "-i","any","-Q","in","-nn","-U","-l","tcp and host " + pubIP + " and port 80"],
+stdout=subprocess.PIPE,
+stderr=subprocess.STDOUT,
+text=True,
+bufsize=1
+)
+</code>
+</pre>
+<p>You can see that I am leaving this subprocess command open and capturing its output. Next, let's try to make an connection to our public IP address at port 80. But before we do this, there is one problem. tcpdump takes a while to initialize and if we send packets before it gets initialized, they are lost and we will falsely conclude that the port is unreachable. The tcpdump output looks like this:</p>
+
+<pre>
+<code>
+[sudo: authenticate] Password:         
+tcpdump: WARNING: any: That device doesn't support promiscuous mode
+(Promiscuous mode not supported on the "any" device)
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on any, link-type LINUX_SLL2 (Linux cooked v2), snapshot length 262144 bytes
+</code>
+</pre>
+<p>The key line is: "listening on any, ......". When this prints, we can go ahead and try to make the connection. Very simple, like this:</p>
+<pre>
+<code>
+while True:
+        line=tcpdump.stdout.readline()
+        if "listening on" in line:
+                break
+</code>
+</pre>
+<p>Basically, we don't move forward until tcpdump outputs a line containing "listening on". I see how that could be a problem but we ignore that for now. The key  thing is, after we break out of this loop, we know that tcpdump has started listening.</p>
+
+<h3>Sockets</h3>
+<p>Now we use python socket library to create a TCP connection with our machine's public IP address.</p>
+
+<pre>
+<code>
+try:
+        with socket.create_connection((pubIP,80),timeout=3):
+                print("connection succeded")
+except:
+                print("connection failed")
+
+</code>
+</pre>
+<p>We do not care if the connection fails or succeeds, because no matter what, tcpdump logs these connection requests which look like:</p>
+<pre>
+<code>
+20:03:43.283653 wlan0 In  IP xx.xxx.xx.xxx.46522 > 192.168.1.3.80: Flags [S], seq 605573238, win 64240, options [mss 1460,sackOK,TS val 2197563817 ecr 0,nop,wscale 10], length 0
+20:03:44.203988 wlan0 In  IP xx.xxx.xx.xxx.46522 > 192.168.1.3.80: Flags [S], seq 605573238, win 64240, options [mss 1460,sackOK,TS val 2197564862 ecr 0,nop,wscale 10], length 0
+20:03:45.227878 wlan0 In  IP xx.xxx.xx.xxx.46522 > 192.168.1.3.80: Flags [S], seq 605573238, win 64240, options [mss 1460,sackOK,TS val 2197565886 ecr 0,nop,wscale 10], length 0
+</code>
+</pre>
+<p>In the above output, where xx.xxx.xx.xxx is the public IP address. We see there were 3 connection attempts from the public IP address to the the machine's local IP address on port 80. That's what we want! We have to write a code to detect this part: "192.168.1.3.80:". The machine's local IP address followed by a dot(.) followed by 80, followed by a colon(:).</p>
+
+<h3>Terminate tcpdump and retrieving output</h3>
+<p>Let's terminate tcpdump subprocess and collect the outputs. </p>
+
+<pre>
+<code>
+tcpdump.terminate()
+
+output, _ =tcpdump.communicate(timeout=3)
+output=output.splitlines()
+</code>
+</pre>
+Now we have the output in the variable "output".
+
+<h3>Detection strings</h3>
+<p>We already know that tcpdump only logs the connection coming from our IP address to port 80 on our machine. Now using this approach, any output from the given tcpdump process should conclude that port forwarding is active. But more specifically, let's detect string that looks like this: "192.168.1.3.80:". Since we are only logging incoming connections from our public IP address, this string basically says that the traffic went to a specific host at specific port. Let's detect this:</p>
+
+<pre>
+<code>
+confStrings=[]
+for addr in localIPs:
+        confStrings.append(addr+".80:")
+print(f"...........{confStrings}")
+
+for addr in confStrings:
+        print(f"looking for {addr}")
+        for line in output:
+                if addr in line:
+                        PF=True
+
+if PF==True:
+        print("port forwarding detected")
+else:
+        print("not detected")
+</code>
+</pre>
+<p>We add ".80:" to the local IP addresses recorded above and see if the string exists on the tcpdump. If it does, port forwarding should be enabled. It not, then port forwarding may not be enabled.</p>
+
+<h2>Disclaimer</h2>
+<p>I haven't found a case where this script fails but that isn't the evidence that this script never fails. All of this was my idea and it is working fine for me. If I ever discover cases where it doesn't work, I'll update it.</p>
+
+<h3>Dependencies</h3>
+<p>This script has following dependencies:</p>
+<ul>
+<li>python subprocess and socket module</li>
+<li>tcpdump</li>
+</ul>
+<p>Bootstrapping may be done later.</p>
+
+<h2>Conclusion</h2>
+<p>This is an app which can perform port forwarding detection on the host machine running Alpine Linux or Debian. Since the detection is not done from the same machine, and the same network, it may yield inaccurate results even though as of this writing I haven't detected any problems. If any problems are found, updates will be made to the GitHub link provided above. This document will not receive any updates. Here is the complete code for your reference:</p>
+<pre>
+<code>
+import subprocess
+import socket
+import time
+
+PF=False
+
+ipaddr=subprocess.run(["ip","-4","-o","addr","show","scope","global"],
+capture_output=True,
+text=True).stdout.splitlines()
+
+localIPs=[]
+for line in ipaddr:
+        temp = line.split("inet")[1].split("/")[0].strip()
+        localIPs.append(temp)
+
+pubIP=subprocess.run(["curl","-4","ifconfig.me"],
+capture_output=True,
+text=True).stdout.strip()
+
+tcpdump=subprocess.Popen(["tcpdump", "-i","any","-Q","in","-nn","-U","-l","tcp and host " + pubIP + " and port 80"],
+stdout=subprocess.PIPE,
+stderr=subprocess.STDOUT,
+text=True,
+bufsize=1
+)
+
+i=0
+while i<100:
+	line=tcpdump.stdout.readline()
+	if "listening on" in line:
+		break
+	time.sleep(0.1)
+	i+=1
+try:
+        with socket.create_connection((pubIP,80),timeout=3):
+                print("Connection succeded")
+except:
+                print("Connection failed")
+
+tcpdump.terminate()
+
+output, _ =tcpdump.communicate(timeout=3)
+output=output.splitlines()
+
+confStrings=[]
+for addr in localIPs:
+	confStrings.append(addr+".80:")
+
+for addr in confStrings:
+	for line in output:
+		if addr in line:
+			PF=True
+
+if PF==True:
+	print("Port Forwarding detected")
+else:
+	print("Port Forwarding not detected")
+</code>
+</pre>
+
+</body>
+</html>
+
+<p>NAT Hairpinning is intentionally left out of this script.</p>

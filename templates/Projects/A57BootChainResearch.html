@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boot Chain Research</title>
+
+    <link rel = "stylesheet" href="../../static/style.css"> 
+</head>
+<body>
+    <h1>Galaxy A57 Boot-Chain Security Research</h1>
+
+<h2>Project status: <b>Incomplete. Hardware Failure</b></h2>
+
+<h2>About</h2>
+<p>This research is about the boot-chain security research  on a network-locked, bootloader-locked Samsung Galaxy SM-A57. The goal of this project is to unlock the bootloader, or get a foreign Operating System to boot in the phone. This research takes a comprehensive approach, covering a broad area, where its other half <a href="https://www.sushantadk.com/Projects/SamsungSecPatchAnalysis.html">https://www.sushantadk.com/Projects/SamsungSecPatchAnalysis.html</a> analyses the security updates and firmware changes on the phone which can reveal potential vulnerabilities. The phone will be exclusively be worked on in download mode, rarely booted and never connected to a network to avoid getting firmware updates.</p>
+
+<h2>The other half</h2>
+<p>This is a brief summary of what the other project has established.  Samsung security updates bulletin at: <a href="https://security.samsungmobile.com/securityUpdate.smsb">https://security.samsungmobile.com/securityUpdate.smsb</a> is used to analyse the changes between firmware updates. The tool samloader: <a href="https://github.com/topjohnwu/samloader-rs">https://github.com/topjohnwu/samloader-rs</a> is used to get the firmware packages directly from the Samsung servers. First two firmware were obtained from: <a href="https://samfw.com/">https://samfw.com/</a> and later verified using hash from multiple websites, exact device identifiers, and comparing cryptographic keys. Ghidra <a href="https://github.com/nationalsecurityagency/ghidra">https://github.com/nationalsecurityagency/ghidra</a> will be used to reverse engineer the binaries. </p>
+
+<h2>Why do this?</h2>
+<p>As the time of this writing, this website is being served on a Redmi Note 10 pro running Alpine Linux from postmarketOS. Even though the phone is 5 years old, I have absolutely no problem with it or its computing capacity. I am, however, not completely satisfied with the operating system on it. postmarketOS did a great job of trying to turn an Android phone into a Linux phone where features like: Touchscreen, Bluetooth, NFC, Calls, SMS, Mobile data, etc all work. However, I do not need any of those features. The only things I do need are: USB Networking, Storage, WiFi, Battery, Charging, and a very few others.</p>
+
+<p>The extra features wouldn't have been a problem if the things I needed had properly worked, but the operating system didn't support charging. Even though the solution was quite small, it had to be manually fixed: <a href="https://www.sushantadk.com/SupportingDocuments/fixingUSBChargingByEditingTheDeviceTree.html">https://www.sushantadk.com/SupportingDocuments/fixingUSBChargingByEditingTheDeviceTree.html</a>. Plus, there is something going on with the sensors in the phone which causes it to reboot when you move it.</p>
+
+<p>So naturally, I wanted to port my own Linux into a phone, Galaxy A57 in this case. But since this phone this phone is only 5 months old, any support on it is practically non-existent. Plus, the bootloader is locked. So the project took a long detour where now I have to find a vulnerability on the boot chain, exploit it so the phone accepts foreign operating system, then attempt to port Linux on it. </p>
+
+<h3>Is it even worth it?</h3>
+<p>Maybe? Let's compare it to doing this project on an iPhone 17. Let's suppose I find a vulnerability caused by poor memory management on the iPhone 17 firmware and exploit it so I can run foreign OS on it. Next month, Apple will patch it and my phone is the only iPhone in the whole world which can run foreign OS. This is kind of a dead end because then I will have to port the OS on it from scratch, minimal public documentation makes things like hardware bring up very difficult, and if I do manage it, I have to spend my whole life giving myself security updates and patches, complaining, debugging, discovering vulnerabilities, etc. Not Good.</p>
+
+
+<p>Samsung Galaxy A57, however, will likely have Linux community support because the international model of the phone does have OEM unlocking. So even though I exploit a firmware vulnerability and Samsung patches it later, no problem. I am already on the other side and there is (well, hopes and prayers) a community on the other side. </p>
+
+
+<p>Also, if anybody saw what I did, I am deliberately leaving the BootROM, silicon, and other physical vulnerabilities out of this comparison.</p>
+
+<h2>Overview</h2><p>
+    
+    This research will largely be done on the firmware because the chances of a physical vulnerability existing on the hardware is practically non-existent. When the phone gets power, the BootROM wakes up and loads the Primary Bootloader. The primary bootloader checks the digital signature of the secondary bootloader and if verified, hands the control to the SBL and goes to sleep. There might be a vulnerability on the BootROM or the PBL, how it locates and reads the SBL, how it calculates and matches the hash, but the chances of it are very small and I don't have any practical way to research on it.
+</p>
+<p>
+    
+    So that means the research will largely start from the SBL. However, we can't directly modify the SBL because the PBL will reject it if we do. Instead, we have to look at the firmware and see if there are some bad implementations which would lead into an exploitable vulnerability.
+</p>
+
+<h3>Verification</h3>
+<p>The system is based on Public-Key Cryptography. Samsung's private key signs the firmware, and the phone's hardware verifies the signature before handing the control to the other components. The other components such as the SBL and other firmware components are expected to maintain the same level of security as the hardware did. There are other verifications, keys and hashes involved. I will not waste time to break the public key cryptography but instead, I may investigate how it is implemented, like how is the hash calculated, how is it compared, how much time passes between when it verifies the file and when it loads the file, are other CPU cores enabled, etc.</p>
+
+<h3>One Question</h3>
+<p>Even though firmware is different on different models the I expect the chips to be the same. Keeping in mind that the phone can be officially unlocked, I expect there is a bit in the memory which behaves roughly like: 0 = bootloader unlocked, 1 = bootloader locked. International models have the mechanism to change this bit but network locked models don't.</p>
+<p>
+    
+    How is it enforced? I don't think they go back and make this bit physically unwritable just because it is a network locked model. I think that bit is still writable but we just can't write to it. Let me explain. The bit may still be writable but we can't write on it because Samsung provides a different firmware on this phone. PBL verifies the firmware, and this firmware is missing the code which can write to that bit.
+</p>
+<p>
+    
+    What happens if you manually update the firmware and add the code which does write to the bit? Well, the signature changes so the PBL never accepts it. So let's take one step back and look at it.
+</p>
+
+<h3>A Step Back</h3>
+<p>What does PBL actually accept? Is it the matching private key or Samsung's private key? Or in other words, does the firmware have to be signed by a master key <em>"SamsungPrivateKeyGalaxyA57"</em> or a specific key <em>"SamsungPrivateKeyGalaxyA57USANetworkLocked"</em> for the same phone, but different model? I am almost certain it is the later. Which would mean that the PBL only accepts signature from its matching private key.</p> 
+<p>
+    
+    Now wait a minute, how could this be if the chip is same? The only way this is possible is if Samsung goes back to the factory and rebuilds the chip, burns in a new key from scratch every time a network orders phones. I tried to do some research on it with searches identical to "when a US network carrier orders a Samsung phone, do they configure the existing phones or do they go back to the factory and start building from the chip?" but looks like this info is guarded. But the information I got was pointing to: The phone hardware is already assembled. When a network puts in an order, they configure the phones and ship them.
+</p>
+
+<p>So if the chips and the hardware are really the same, it means that same public keys are burned into all the chips, which would mean all the chips have to accept a single key. The point I am getting to is, what is stopping me from flashing a bootloader unlocked firmware into a phone that is "supposed" to have a locked bootloader? The boundary between the hardware and the firmware is between the PBL and SBL. If we can get the PBL to accept a SBL, this problem is basically solved. Now the question is whether the PBL(hardware btw) is configured to the same key across all the models. </p>
+<p>
+    This looks very likely and unlikely at the same time. Unlikely because if the PBL does accept any key for the phone, we should be able to flash any firmware to any phone. But this makes "bootloader lock" and "network lock" look trivial and anybody could turn locked phones into unlocked phones using the official tools and documentations. Also, likely because tailoring SoC, BootROM, and PBL just because a network order phones seem very unlikely. So now, we'll test it. I will attempt to flash <code>Samsung SM-A576B</code> firmware into a phone whose label says <code>Samsung SM-A576U</code>.
+</p>
+
+
+<h3>International Firmware</h3>
+<p>The firmware requirements are: Must be Exynos chip version, SW REV should be higher. I found this to be the perfect candidate:</p>
+<pre>
+<code>
+- AP VERSION A576BXXS2AZD3
+- CSC VERSION A576BOWO2AZD3
+- ANDROID VERSION B(Android 16)
+- BIT (BINARY/U/SW REV.) [](https://samfw.com/blog/what-is-bit-binary-value) 2
+- SIZE 8.78 GB  Full Files
+- MD5 `d838317c2e4fbb32d671becbd2cd7528
+</code>
+</pre>
+<p>This one uses Exynos chip and SW REV is 2. Looks good, let's try flashing it. Either it gets accepted, problem solved, or it gets rejected, then we look for something else.</p>
+<h3>Heimdall</h3>
+<p>The official tool Odin4 didn't work properly so I had to resort to Heimdall.  Heimdall is a bit complex and and doesn't provide as much protection as Odin4 does. Plus, we have to precisely know the partition name, and the file name we are flashing. From <code>heimdall download-pit</code>, I obtained: </p> 
+<pre>
+<code>
+--- Entry #12 ---
+Binary Type: 0 (AP)
+Device Type: 8 (UFS)
+Identifier: 5
+Attributes: 5 (Read/Write)
+Update Attributes: 1 (FOTA)
+Partition Block Size/Offset: 10646
+Partition Block Count: 4096
+File Offset (Obsolete): 0
+File Size (Obsolete): 0
+Partition Name: BOOTLOADER_A
+Flash Filename: sboot.bin
+FOTA Filename: 
+
+--- Entry #15 ---
+Binary Type: 0 (AP)
+Device Type: 8 (UFS)
+Identifier: 7
+Attributes: 5 (Read/Write)
+Update Attributes: 1 (FOTA)
+Partition Block Size/Offset: 15148
+Partition Block Count: 4096
+File Offset (Obsolete): 0
+File Size (Obsolete): 0
+Partition Name: BOOTLOADER_B
+Flash Filename: sboot.bin
+FOTA Filename: 
+</code>
+</pre>
+<p>So we have to flash the <code>sboot.bin</code> to the partitions: <code>BOOTLOADER_A</code> and <code>BOOTLOADER_B</code>. Like this:</p>
+<pre>
+<code>
+sushant@Elfie:~/SamsungResearch/ZVVBrazil$ heimdall flash --BOOTLOADER_A BL/sboot.bin --BOOTLOADER_B BL/sboot.bin 
+Heimdall v2.1.0
+
+Copyright (c) 2010-2017 Benjamin Dobell, Glass Echidna https://glassechidna.com.au
+Copyright (c) 2021-2024 Henrik Grimler
+This software is provided free of charge. Copying and redistribution is encouraged.
+
+Initialising connection...
+Detecting device...
+Claiming interface...
+Initialising protocol...
+Resetting device...
+Protocol initialisation successful.
+
+Beginning session...
+
+Some devices may take up to 2 minutes to respond.
+Please be patient!
+
+Session begun.
+
+Downloading device's PIT file...
+PIT file download successful.
+
+Uploading BOOTLOADER_A
+100%
+BOOTLOADER_A upload successful
+
+Uploading BOOTLOADER_B
+100%
+BOOTLOADER_B upload successful
+
+Ending session...
+ERROR: Failed to receive session end confirmation!
+Releasing device interface...
+
+sushant@Elfie:~/SamsungResearch/ZVVBrazil$ 
+</code>
+</pre>
+
+<h2>After Flash</h2>
+<p>Heimdall fully uploaded the files but received an error before the session ended. Then the phone said: <code>SECURE CHECK FAIL: BOOTLOADER_A</code>. I tried to reboot the phone but it didn't wake up. I tried pressing power button, didn't work, I tried booting into Download mode by pressing the volume buttons and plugging in a charger but that also didn't work. Since there are only 3 buttons and one charging port, I can say that i tried every single combination but none of them worked. However, this is not the first time a phone has died on me. After some research online, and from my previous experiences with a similar situation, I plugged the phone to a wall charger and waited 30 mins, an hour, 2 hours, 10 hours, the phone never came back. I can reasonably conclude that the phone has been hard bricked on the hardware level.</p>
+
+<h2>Why did this happen?</h2>
+<p>My premise was wrong twice. The chip on the US phone was not the same as the ones on the phones from Brazil. Also, I said either the phone rejects the firmware, so it won't be written, or the phone accepts it in which case, we can unlock the bootloader because it is now running the Brazilian model. But there was a third option, where Heimdall writes the file to the specified partition without any verification so when the phone tries to verify it after it has been written, it will fail and since it is already written on the partition and the phone doesn't store a backup copy, the phone will fail internally and it can't even boot into Download mode.</p>
+
+<h2>Samsung did this</h2>
+<p>Yep you read that correctly, Samsung did this not me. Well, that may not be entirely correct but whatever. The phone was programmed to be hard bricked if someone tried to write a different firmware on it. This was by design, and not a mistake. The phone was told "if someone tries to something nasty, DIE".</p>
+
+<h3>Helpful Analogy</h3>
+<p>British commander during WWII (Samsung): If someone tries to capture you(load a different firmware), you bite down on this poison capsule and kill yourself.</p>
+
+<p>Special British Agents (Galaxy A57U): If someone tries to capture me, I will bite down on this poison(I'll blow some fuses and induce hard brick) and die.</p>
+
+<p>The Enemy (Me): \*\*Tries to capture the agents (unlock the bootloader)\*\*, the agent bites down on the pill and dies(Blows fuses and induces hard brick)</p>
+<p>
+    
+    This might not be entirely true and I can't verify it because the phone is bricked, but if we talk generally, this is basically what happened.
+    Could Samsung had not programmed the phone this way? Absolutely! But I'm afraid this is how they maintain security of their devices in the modern world.
+</p>
+
+<h2>How did the phone know?</h2>
+<p>Coming back to my previous assumption, how did the hardware know to not accept some firmware? Is there a way Samsung can modify the chips after production? The answer is very likely yes but then again, this info seems heavily guarded and didn't show up on general searches but I'm sure I can find more details on this once I start reading documentations. Once I find a relation between a documentation and what happened to the phone, it will be updated here. I will also try to answer why the foreign firmware got written in the partition first place? Because writing first verifying later seems like recipe for a disaster where the phone has a no way to reject a firmware without getting bricked. Can it be Heimdall? I know Odin can flash zipped files by automatically figuring out the partitions itself, and safely write the files. Heimdall on the other hand is very advanced where one has to know exactly what files goes into what partition. Is it because I flashed a single file and not the complete package? I'll try to answer these questions below. Keep in mind, all these questions converge at the same place: HOW THE CUSS DID THE PHONE KNOW?</p>
+
+<h2>Can it be recovered?</h2>
+<p>Considering this is a $600 phone, this should've been my first question but the answer may be no. Again, I can't say it with certainty. But I do know that Samsung prevents firmware rollbacks with fuses in the SoC. Once the phone accepts a new firmware, it blows some fuses so that if you ever try to put old firmware, the blown fuses will be an evidence that the phone was once operating with a newer firmware before and the old firmware won't be accepted.</p>
+<p>
+    
+    Maybe something like this happened? If so, maybe there is also a mechanism to blow the fuses if someone tries to flash a firmware from a different? In this case flashing a bootloader unlockable firmware to a phone which was supposed to be locked forever? I'd consider this more of a threat than trying to flash an old firmware. So maybe Samsung has something like "integrity fuse" which blows up when someone try to do what I did and make the chip unusable? This is the reason why I don't think the phone is unrecoverable. If a some bootloader fuses have blown, you can simply upload a bootloader with higher revision number and the phone starts operating normally again. But what if an integrity fuse has blown? how can you ever establish security on that phone?
+</p>
+
+<p>Someone would argue that there could be some way to perform hardware recovery using JTAG device by soldering microscopic wires straight onto the motherboard, but considering the fuses that may have blown, and my inability to operate a JTAG device or pay someone to do it, that's not going to happen. Maybe a new motherboard could work but sadly, this phone isn't getting it. So there is my answer to the question: If you try to flash an international, bootloader-unlocked firmware into a US, network-locked phone, the phone will be hard bricked. The exact cause is unknown because no debugging was possible after the flash.</p>
+
+<h2>Conclusion</h2>
+<p>I wouldn't attribute this entirely to lack of research on my part. I couldn't find a definitive answer about what happens when we flash a different firmware on the phone. However, my original suspicion was right, if this was possible, "bootloader-locked" phones wouldn't be a thing. I had hoped that there would be a check which would reject the file before writing, or a soft brick,but the file was written first then rejected internally, leaving me without a way to recover it.</p>
+<p>This research was cut short because of an experiment on a undocumented behavior.  I will move the other project right below this one so this can serve as a standalone failed research project.</p>
+
+<h2>Lessons Learned</h2>
+<p>Too many lessons were learned here the hard way in this research but there is one that defeated me. The lesson is: It is difficult to make a phone 100% secure, but it is easy to get it to kill itself if tampering is detected. Or in the analogy I used earlier, It is impossible to guarantee that your soldiers won't die, but it is easy to give them poison pills and get them to kill themselves to avoid unintended circumstances.</p>
+
+<h3>Logic Bombs</h3>
+<p>What makes this research even more painful is that I have worked with logic bombs before, and I know how they work, how you have to move through and disarm the bomb. This research also turned out to be a logic bomb project where if you take certain steps, the bomb will explode. Normally, I would just delete the bomb and get a new one but I can't do it here without spending another $600 making it one of my very costly mistakes.</p>
+
+<h3>My approach was poorly evaluated</h3>
+<p>It's not everyday that you can witness me addressing this but that's what happened. My approach was: There is no way this phone is 100% secure. There is a crack in the chain, maybe it will take me 2 years, 5 years, 10 years, or my entire life, I will find that crack, exploit it and unlock the bootloader.</p>
+<p>What wasn't my major consideration: THE PHONE CAN KILL ITSELF IF. Flashing a different firmware was not an experiment, it was a kill command. I should've figured this out before I performed the flash.</p>
+
+
+<h1>Samsung Firmware Security Patch Analysis</h1>
+<h2>About</h2>
+<p>This project is the other half of the research <a href="https://www.sushantadk.com/Projects/A57BootChainResearch.html">https://www.sushantadk.com/Projects/A57BootChainResearch.html</a> where I am actively trying to find a vulnerability on the boot sequence of a network-locked, bootloader-locked Samsung SM-A576U which can lead to a untrusted Operating System booting into the system.  The other project is my attempt to understand the whole architecture, boot sequence, where things are verified, where transitions happen and form a hypothesis and see if that leads to anything. This one, however is going to be strictly focused on the Samsung's OTA firmware updates and understanding what changed from the last configuration. Maybe a firmware update reveals a flaw I am looking for? But firmware can be patched, so for that reason, the phone will be rarely booted and never connected to a network so it cannot receive any updates.</p>
+
+<h2>Sources</h2>
+<h3>Security Updates</h3>
+<p>Samsung's website at: <a href= "https://security.samsungmobile.com/securityUpdate.smsb">https://security.samsungmobile.com/securityUpdate.smsb</a> will be used to analyse the security updates released for the phone. Using the general description, I will attempt to reverse engineer it using <em>ghidra</em> and track it down to the individual binaries and locate exactly what changed. Maybe it will lead to an exploit, or just be a reverse engineering exercise.</p>
+
+<h3>OTA Updates</h3>
+<p>Samsung does not provide a direct download portal on it's website where users can manually download the firmware packages. But there are ways to get around it. If you have ever used a GitHub API to do simple things like PUT and GET, it makes sense to just make a request a Samsung phone would make for an update, the servers will send you the package.</p><p>
+    
+    But, Samsung doesn't provide an API documentation like GitHub so you'll have figure out a way to communicate with the Samsung Servers, bypass whatever security measures they might have to protect against this, calculate decryption keys, this and that and whatnot and get the package.
+</p>
+<p>We don't have to do all that ourselves because my friends(really?) at: <a href="https://github.com/topjohnwu/samloader-rs">https://github.com/topjohnwu/samloader-rs</a> have already figured it out and we can just use their tool to get the newest updates! Yay!</p>
+
+<h3>Firmware Archive</h3>
+<p>But, I'M LATE!! Five months to be exact. The phone was released on April 2026 and it is currently Oct 2026. The tool I mentioned above can only download the current updates, and since the updates arrive on a monthly basis, I missed the updates for the month May, June, July, August, and September. However, you must not fear, my other friend (hmmm) at: <a href="https://www.sammobile.com/firmwares/">https://www.sammobile.com/firmwares/</a> has an firmware archive which does have the exact firmware I am looking for. However, he  is a little sketchy, so I will have to manually verify the five firmware before I work on them.</p>
+<b>Update</b><br>
+<p>sammobile.com started asking me for money so I had to let that one go. I did further research, and I will be using <a href="https://samfw.com/">https://samfw.com/</a> to get the firmware from the missing months. The file sill still go through manual verification.</p>
+
+<h3>More sources</h3><p>
+    
+    More sources will be added as I start using them.
+</p>
+
+<h2>Samloader and Ghidra</h2>
+<h3>Samloader: <a href="https://github.com/topjohnwu/samloader-rs">https://github.com/topjohnwu/samloader-rs</a></h3>
+<p>Installing samloader is easy. Following the instructions, you need a working rust toolchain, which you can install as:</p>
+<pre>
+<code>
+sudo apt-get install rustup
+rustup default stable
+</code>
+</pre>
+<p>This will install the components we need including cargo. Then we use cargo to install samloader like:</p>
+<pre>
+<code>
+cargo install samloader
+</code>
+</pre>
+<p>The tool will now be at <code>/home/user/.cargo/bin/samloader</code>. You can edit your path to include this, or just move the tool to your working directory and execute it there. I chose the later.  Running help command on the tool reveals that you download the packages as follows:</p>
+<pre>
+<code>
+samloader download --model DEV_MODEL --region DEV_REGION
+</code>
+</pre>
+<p>That's it! and when it is done, you'll get a package like this: <code>SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip</code>. Since this is going to disappear in a month, I am going to create a copy of the file, and work on the copy and leave this one untouched. If I mess something up in the working copy, I come back to the original file and get a fresh copy. Something like this:</p>
+<pre>
+<code>
+sushant@Elfie:~/SamsungBackup$ mkdir 26Oct9Backup
+sushant@Elfie:~/SamsungBackup$ mv SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip 26Oct9Backup/
+sushant@Elfie:~/SamsungBackup$ mkdir ../SamsungResearch/26Oct9Research
+sushant@Elfie:~/SamsungBackup$ cp 26Oct9Backup/SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip ../SamsungResearch/26Oct9Research/
+sushant@Elfie:~/SamsungBackup$ ls
+26Oct9Backup  samloader
+sushant@Elfie:~/SamsungBackup$ cd 26Oct9Backup/
+sushant@Elfie:~/SamsungBackup/26Oct9Backup$ ls
+SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip
+sushant@Elfie:~/SamsungBackup/26Oct9Backup$ md5sum SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip > md5sum.txt
+sushant@Elfie:~/SamsungBackup/26Oct9Backup$ sha256sum SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip > sha256sum.txt
+sushant@Elfie:~/SamsungBackup/26Oct9Backup$ cat sha256sum.txt 
+339d0ac2aef73111957656d36ccac8fa1187e5fc578593ade63a598b46066777  SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip
+sushant@Elfie:~/SamsungBackup/26Oct9Backup$ cat md5sum.txt 
+f87bb83750985e19599ffab7a6665931  SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip
+sushant@Elfie:~/SamsungBackup/26Oct9Backup$ 
+</code>
+</pre>
+<p>So now I've got a backup directory, a working directory, and checksum of the original file. Now there is 3 layers that need to be extracted, using unzip, tar and lz4. Like this:</p>
+<pre>
+<code>
+sushant@Elfie:~/SamsungResearch/26Oct9Research$ unzip SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip -d .
+Archive:  SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip
+  inflating: ./BL_A576USQS4AZI3_A576USQS4AZI3_MQB114321516_REV00_user_low_ship_MULTI_CERT.tar.md5  
+  -----------------------------------snip----------------------------
+sushant@Elfie:~/SamsungResearch/26Oct9Research$ ls
+AP_A576USQS4AZI3_A576USQS4AZI3_MQB114321516_REV00_user_low_ship_MULTI_CERT_meta_OS16.tar.md5  
+---------------------------------------snip---------------------------------
+sushant@Elfie:~/SamsungResearch/26Oct9Research$ mkdir unzip
+sushant@Elfie:~/SamsungResearch/26Oct9Research$ mv *.md5 unzip/
+sushant@Elfie:~/SamsungResearch/26Oct9Research$ ls
+SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip  unzip
+sushant@Elfie:~/SamsungResearch/26Oct9Research$ cd unzip/
+sushant@Elfie:~/SamsungResearch/26Oct9Research/unzip$ ls
+BL_A576USQS4AZI3_A576USQS4AZI3_MQB114321516_REV00_user_low_ship_MULTI_CERT.tar.md5            
+-------------------------------snip-------------------------------sushant@Elfie:~/SamsungResearch/26Oct9Research/unzip$ mkdir BL
+sushant@Elfie:~/SamsungResearch/26Oct9Research/unzip$ tar -xvf BL_A576USQS4AZI3_A576USQS4AZI3_MQB114321516_REV00_user_low_ship_MULTI_CERT.tar.md5 -C BL/
+fld.bin.lz4
+--------------------------------snip---------------------------------
+sushant@Elfie:~/SamsungResearch/26Oct9Research/unzip$ cd BL/
+sushant@Elfie:~/SamsungResearch/26Oct9Research/unzip/BL$ ls
+cip.bin.lz4  dtp.bin.lz4  fld.bin.lz4  harx.bin.lz4  keystorage.bin.lz4  ldfw.img.lz4  sboot.bin.lz4  sld.bin.lz4  svm.bin.lz4  tzar.img.lz4  tzsw.img.lz4  uh.bin.lz4  up_param.bin.lz4  vbmeta.img.lz4
+sushant@Elfie:~/SamsungResearch/26Oct9Research/unzip/BL$ for f in *.lz4; do lz4 -d "$f" 
+> done
+Decoding file cip.bin 
+cip.bin.lz4                    : decoded 2097152 bytes                         
+------------------------------------snip----------------------------sushant@Elfie:~/SamsungResearch/26Oct9Research/unzip/BL$ ls
+cip.bin      dtp.bin      fld.bin      harx.bin      keystorage.bin      ldfw.img      sboot.bin      sld.bin      svm.bin      tzar.img      tzsw.img      uh.bin      up_param.bin      vbmeta.img
+cip.bin.lz4  dtp.bin.lz4  fld.bin.lz4  harx.bin.lz4  keystorage.bin.lz4  ldfw.img.lz4  sboot.bin.lz4  sld.bin.lz4  svm.bin.lz4  tzar.img.lz4  tzsw.img.lz4  uh.bin.lz4  up_param.bin.lz4  vbmeta.img.lz4
+sushant@Elfie:~/SamsungResearch/26Oct9Research/unzip/BL$ 
+</code>
+</pre>
+<p>And there you go, the firmware files have now been extracted and the binaries are ready to be loaded to Ghidra. </p>
+
+<h3>Ghidra: <a href="https://github.com/nationalsecurityagency/ghidra">https://github.com/nationalsecurityagency/ghidra</a></h3>
+<p>Installing Ghidra is also very easy. From the GitHub link, follow the Install section and download the .zip file under assets. Extract it using unzip and that's it!</p>
+<pre>
+<code>
+sushant@Elfie:~/Ghidra$ unzip ghidra_12.1.4_PUBLIC_20260921.zip -d .
+Archive:  ghidra_12.1.4_PUBLIC_20260921.zip
+   creating: ./ghidra_12.1.4_PUBLIC/
+---------------------------------------snip----------------------
+sushant@Elfie:~/Ghidra$ ls
+ghidra_12.1.4_PUBLIC  ghidra_12.1.4_PUBLIC_20260921.zip
+sushant@Elfie:~/Ghidra$ cd ghidra_12.1.4_PUBLIC/
+sushant@Elfie:~/Ghidra/ghidra_12.1.4_PUBLIC$ ls
+Extensions  GPL  GettingStarted.html  GettingStarted.md  Ghidra  LICENSE  bom.json  docker  docs  ghidraRun  ghidraRun.bat  licenses  server  support
+sushant@Elfie:~/Ghidra/ghidra_12.1.4_PUBLIC$ ./ghidraRun 
+</code>
+</pre>
+<p>Let's load something in Ghidra. First, you have to select the language for whatever file you want to analyze. I followed this link: <a href="https://source.android.com/docs/compatibility/cdd">https://source.android.com/docs/compatibility/cdd</a>, and according to it, the setting should be as follows:</p>
+<ul>
+<li>Processor: AARCH64 </li>
+<li>Size: 64</li>
+<li>Endian: Little</li>
+</ul><p>
+    
+    And the cores used on the phone are built on ARMv9-A architecture. But Ghidra didn't have this one. Doing some more research, I figured ARMv9-A and ARMv8-A are backwards compatible, and selecting the v8A variant and default compiler, I got:
+</p>
+<pre>
+<code>
+-------------------------------------snip-----------------------------------
+                                                 XREF[3]:     000000d8(W), 
+                                                                                                   00000110(*), 
+                                                                                                   00000118(*)  
+                             FUN_000000d8
+        000000d8 fd 7b bf a9     stp        x29,x30,[sp, #local_10]!
+        000000dc fd 03 00 91     mov        x29,sp
+        000000e0 94 01 00 94     bl         FUN_00000730                                     undefined FUN_00000730()
+        000000e4 a0 01 00 b5     cbnz       x0,LAB_00000118
+        000000e8 00 00 00 b0     adrp       x0,0x1000
+        000000ec 01 00 00 b0     adrp       x1,0x1000
+        000000f0 21 00 00 91     add        x1=>DAT_00001000,x1,#0x0                         = 43h    C
+        000000f4 00 8c 41 f9     ldr        x0,[x0, #0x318]=>DAT_00001318                    = 00000000C90031A8h
+        000000f8 02 00 40 f9     ldr        x2,[x0]=>DAT_c90031a8
+        000000fc 80 00 80 52     mov        w0,#0x4
+        00000100 40 00 3f d6     blr        x2
+        00000104 01 00 00 b0     adrp       x1,0x1000
+        00000108 21 a8 41 f9     ldr        x1=>DAT_c90031e0,[x1, #0x350]=>DAT_00001350      = 00000000C90031E0h
+        0000010c 20 00 00 b9     str        w0,[x1]=>DAT_c90031e0
+        00000110 fd 7b c1 a8     ldp        x29=>local_10,x30,[sp], #0x10
+        00000114 df ff ff 17     b          FUN_00000090                                     undefined FUN_00000090()
+                             -- Flow Override: CALL_RETURN (CALL_TERMINATOR)
+                             LAB_00000118                                    XREF[1]:     000000e4(j)  
+        00000118 fd 7b c1 a8     ldp        x29=>local_10,x30,[sp], #0x10
+        0000011c c0 03 5f d6     ret
+                             
+                             
+-----------------------------------snip------------------------------
+</code>
+</pre>
+
+<p>Question. What is this nonsese?</p>
+
+<h2>Old firmware verification</h2>
+<p>I am using samfw.com to get the firmware that I am missing. And turns out, I was wrong about how many firmware I actually missed. The release dates and bootloader revision numbers are as follows:</p>
+<ul>
+<li>2026-07-05       SW REV: 1</li>
+<li>2026-08-05       SW REV: 3</li>
+<li>2026-09-05       SW REV: 4</li>
+</ul>
+<p>The firmware released on 09-05 is the current release so I used samloader to get the firmware directly from the Samsung servers, and compared the hash with the firmware on the archive. The hashes matched! so I have a reasonable belief that this website is indeed uploading the correct firmware and not some generic ones. With the current one, directly from the Samsung server as my reference, I began comparing it to the archived firmware.</p>
+
+<b>Reference firmware from the Samsung Servers:</b>
+<pre>
+<code>
+ro.product.vendor.brand=samsung
+ro.product.vendor.device=a57x
+ro.product.vendor.manufacturer=samsung
+ro.product.vendor.model=SM-A576U
+ro.product.vendor.name=a57xsq
+ro.vendor.product.cpu.abilist=arm64-v8a
+ro.vendor.product.cpu.abilist32=
+ro.vendor.product.cpu.abilist64=arm64-v8a
+ro.vendor.qb.id=114321559
+ro.vendor.build.date=Thu Sep  3 12:41:07 KST 2026
+
+------------------------------snip-----------------------
+</code>
+</pre>
+
+<b>July Archived firmware:</b>
+<pre>
+<code>
+ro.product.vendor.brand=samsung
+ro.product.vendor.device=a57x
+ro.product.vendor.manufacturer=samsung
+ro.product.vendor.model=SM-A576U
+ro.product.vendor.name=a57xsq
+ro.vendor.product.cpu.abilist=arm64-v8a
+ro.vendor.product.cpu.abilist32=
+ro.vendor.product.cpu.abilist64=arm64-v8a
+ro.vendor.qb.id=111487385
+ro.vendor.build.date=Mon Jun 29 17:46:59 KST 2026
+
+------------------------------snip-----------------------
+</code>
+</pre>
+
+<b>August Archived Firmware:</b>
+<pre>
+<code>
+ro.product.vendor.brand=samsung
+ro.product.vendor.device=a57x
+ro.product.vendor.manufacturer=samsung
+ro.product.vendor.model=SM-A576U
+ro.product.vendor.name=a57xsq
+ro.vendor.product.cpu.abilist=arm64-v8a
+ro.vendor.product.cpu.abilist32=
+ro.vendor.product.cpu.abilist64=arm64-v8a
+ro.vendor.qb.id=113432764
+ro.vendor.build.date=Fri Aug 14 17:40:46 KST 2026
+
+------------------------------snip-----------------------
+</code>
+</pre>
+<p>
+    The device identifiers are same, so I moved on to see if I could find any cryptographic keys in the package. I found this key:
+    <pre><code>meta-data/OTA/tools/pub_SM-A576U_NA_XAU_EKEY5.pem</code></pre>
+    This key in the OTA package is used by the device to verify the package authenticity and integrity before applying the updates. And to my surprise, it was the same key in all packages:
+</p>
+<pre>
+<code>
+-----BEGIN PUBLIC KEY-----
+MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA0Xp0emv3H6FsxpHfgDZr
+JrIZ9Sl9p3NAA3Nc3lVrnvcUu6cQmX9vjzPsKi0ukJqfcdgj3haj06t7I7tylU72
+ShWVlqOOyXDAxakqeY6lZtVxU2hMSB4320rzquzJUHSM8j4V9b9bTYEPjbYdZIWg
+jz3LAQLUOv4609FbH77e0NAA5hhRwn9PeINaBtUKqIo/sN73pnwnPbuLX12MQ1BJ
+UsGRGAsPtLccdWbM5qFn6muqZhKnmY/WG18N90sjBNw3deRXcstYu4OhetdIA0Q0
+spLGBe0tykQnKiW8R6NGJqR6Bnn0UuTnmNyFwEfzz/7JLtbd+GBht6ruDz6Mt3ei
+5/QaNsW3NsBH1DdnnVX1VGIdE3UzLaM1pwz8OwB1GUkKP5B4uqDbsj+8jpvIb7CS
+VPVJcIpq8hSjcmrPoX/EGY11w1qwp2j7ZBUfIxehotew0GvLz4kljw2vIhb4ANHG
+GAdbCStG42jLV0PoS7U4wh6tgavplmxvxOslyWPNGiiCv5TU0TCRNgV8XKGxLL7x
+tf5nsPaxwv7D01Nbp4WRqm7tdeeI2hTX9BuwZjQAPbhLmAddqlA6Qgg5L6YGMH5J
+Hw4fUjvNUrk0qQNfWlHJBQTI4LFLGKs64u7I343ZoljZv3jL9FfUdVwVMAPZ+sK7
+kzTuSEGkOSJSQcDQJGOIa0kCAwEAAQ==
+-----END PUBLIC KEY-----
+</code>
+</pre>
+<p>It does make sense because the private key is embedded in a fuse in the SoC and this is the corresponding public key for it. But does that mean that I can provide a modified firmware with this key and my problem is solved? Probably not but hey, the archived firmware packages are verified to a reasonable extent. I checked multiple different websites for the firmware hashes and they all reported the same hash, and all firmware have the same identifiers and same public keys. Could multiple websites be conspiring, uniformly modifying and repackaging the firmware for months July and August but uploading legitimate firmware for September? yes. Could my name not be Sushant? yes.</p>
+
+<h2>Break</h2>
+<p>Looking at all these files made me realize that I know next to nothing about how this actually works on this specific phone. I did ran diff tho. Here is what I got:</p>
+
+<p>July release vs August release:</p>
+<pre>
+<code>
+Files 26July05Research/AP/boot.img.lz4 and 26August05Research/AP/boot.img.lz4 differ
+Files 26July05Research/AP/dtbo.img.lz4 and 26August05Research/AP/dtbo.img.lz4 differ
+Files 26July05Research/AP/init_boot.img.lz4 and 26August05Research/AP/init_boot.img.lz4 differ
+Files 26July05Research/AP/meta-data/BOOT/RAMDISK/system/bin/snapuserd and 26August05Research/AP/meta-data/BOOT/RAMDISK/system/bin/snapuserd differ
+Files 26July05Research/AP/meta-data/BOOT/RAMDISK/system/bin/snapuserd_ramdisk and 26August05Research/AP/meta-data/BOOT/RAMDISK/system/bin/snapuserd_ramdisk differ
+Files 26July05Research/AP/meta-data/BOOT/RAMDISK/system/etc/ramdisk/build.prop and 26August05Research/AP/meta-data/BOOT/RAMDISK/system/etc/ramdisk/build.prop differ
+Files 26July05Research/AP/meta-data/fota_info.txt and 26August05Research/AP/meta-data/fota_info.txt differ
+Files 26July05Research/AP/meta-data/fota.zip and 26August05Research/AP/meta-data/fota.zip differ
+Files 26July05Research/AP/meta-data/MAP/system_ext.map and 26August05Research/AP/meta-data/MAP/system_ext.map differ
+Files 26July05Research/AP/meta-data/MAP/system.map and 26August05Research/AP/meta-data/MAP/system.map differ
+Files 26July05Research/AP/meta-data/META/apex_info.pb and 26August05Research/AP/meta-data/META/apex_info.pb differ
+Files 26July05Research/AP/meta-data/META/care_map.pb and 26August05Research/AP/meta-data/META/care_map.pb differ
+Files 26July05Research/AP/meta-data/META/misc_info.txt and 26August05Research/AP/meta-data/META/misc_info.txt differ
+Files 26July05Research/AP/meta-data/OTA/tools/aapt2 and 26August05Research/AP/meta-data/OTA/tools/aapt2 differ
+Files 26July05Research/AP/meta-data/OTA/tools/build_fingerprint.txt and 26August05Research/AP/meta-data/OTA/tools/build_fingerprint.txt differ
+Files 26July05Research/AP/meta-data/OTA/tools/proca_attrs.txt and 26August05Research/AP/meta-data/OTA/tools/proca_attrs.txt differ
+
+------------------------------------snip------------------------------------
+</code>
+</pre>
+<p>August vs September:</p>
+<pre>
+<code>
+Files 26August05Research/AP/boot.img.lz4 and 26Oct9Research/AP/boot.img.lz4 differ
+Files 26August05Research/AP/dtbo.img.lz4 and 26Oct9Research/AP/dtbo.img.lz4 differ
+Files 26August05Research/AP/init_boot.img.lz4 and 26Oct9Research/AP/init_boot.img.lz4 differ
+Files 26August05Research/AP/meta-data/BOOT/RAMDISK/system/etc/ramdisk/build.prop and 26Oct9Research/AP/meta-data/BOOT/RAMDISK/system/etc/ramdisk/build.prop differ
+Files 26August05Research/AP/meta-data/fota_info.txt and 26Oct9Research/AP/meta-data/fota_info.txt differ
+Files 26August05Research/AP/meta-data/fota.zip and 26Oct9Research/AP/meta-data/fota.zip differ
+Files 26August05Research/AP/meta-data/MAP/system.map and 26Oct9Research/AP/meta-data/MAP/system.map differ
+Files 26August05Research/AP/meta-data/MAP/vendor.map and 26Oct9Research/AP/meta-data/MAP/vendor.map differ
+Files 26August05Research/AP/meta-data/META/apex_info.pb and 26Oct9Research/AP/meta-data/META/apex_info.pb differ
+Files 26August05Research/AP/meta-data/META/care_map.pb and 26Oct9Research/AP/meta-data/META/care_map.pb differ
+Files 26August05Research/AP/meta-data/META/misc_info.txt and 26Oct9Research/AP/meta-data/META/misc_info.txt differ
+Files 26August05Research/AP/meta-data/OTA/tools/aapt2 and 26Oct9Research/AP/meta-data/OTA/tools/aapt2 differ
+Files 26August05Research/AP/meta-data/OTA/tools/build_fingerprint.txt and 26Oct9Research/AP/meta-data/OTA/tools/build_fingerprint.txt differ
+Files 26August05Research/AP/meta-data/OTA/tools/proca_attrs.txt and 26Oct9Research/AP/meta-data/OTA/tools/proca_attrs.txt differ
+
+--------------------------------------snip--------------------------------------------
+</code>
+</pre>
+<p>I see what files are changing between the updates but I don't know what that those files contain. So this project will take a little break. I will be on the other one dissecting the first firmware until I have enough information to understand what the updates were, why did it mattered, and if it is useful for me.</p>
+<p>
+    
+    See you soon!(26Oct10)
+</p>
+
+</body>
+</html>

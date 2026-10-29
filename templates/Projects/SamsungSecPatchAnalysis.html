@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Patch Analysis</title>
+
+    <link rel = "stylesheet" href="../../static/style.css"> 
+</head>
+<body>
+
+<h1>Samsung Firmware Security Patch Analysis</h1>
+<h2>About</h2>
+<p>This project is the other half of the research <a href="https://www.sushantadk.com/Projects/A57BootChainResearch.html">https://www.sushantadk.com/Projects/A57BootChainResearch.html</a> where I am actively trying to find a vulnerability on the boot sequence of a network-locked, bootloader-locked Samsung SM-A576U which can lead to a untrusted Operating System booting into the system.  The other project is my attempt to understand the whole architecture, boot sequence, where things are verified, where transitions happen and form a hypothesis and see if that leads to anything. This one, however is going to be strictly focused on the Samsung's OTA firmware updates and understanding what changed from the last configuration. Maybe a firmware update reveals a flaw I am looking for? But firmware can be patched, so for that reason, the phone will be rarely booted and never connected to a network so it cannot receive any updates.</p>
+
+<h2>Sources</h2>
+<h3>Security Updates</h3>
+<p>Samsung's website at: <a href= "https://security.samsungmobile.com/securityUpdate.smsb">https://security.samsungmobile.com/securityUpdate.smsb</a> will be used to analyse the security updates released for the phone. Using the general description, I will attempt to reverse engineer it using <em>ghidra</em> and track it down to the individual binaries and locate exactly what changed. Maybe it will lead to an exploit, or just be a reverse engineering exercise.</p>
+
+<h3>OTA Updates</h3>
+<p>Samsung does not provide a direct download portal on it's website where users can manually download the firmware packages. But there are ways to get around it. If you have ever used a GitHub API to do simple things like PUT and GET, it makes sense to just make a request a Samsung phone would make for an update, the servers will send you the package.</p><p>
+    
+    But, Samsung doesn't provide an API documentation like GitHub so you'll have figure out a way to communicate with the Samsung Servers, bypass whatever security measures they might have to protect against this, calculate decryption keys, this and that and whatnot and get the package.
+</p>
+<p>We don't have to do all that ourselves because my friends(really?) at: <a href="https://github.com/topjohnwu/samloader-rs">https://github.com/topjohnwu/samloader-rs</a> have already figured it out and we can just use their tool to get the newest updates! Yay!</p>
+
+<h3>Firmware Archive</h3>
+<p>But, I'M LATE!! Five months to be exact. The phone was released on April 2026 and it is currently Oct 2026. The tool I mentioned above can only download the current updates, and since the updates arrive on a monthly basis, I missed the updates for the month May, June, July, August, and September. However, you must not fear, my other friend (hmmm) at: <a href="https://www.sammobile.com/firmwares/">https://www.sammobile.com/firmwares/</a> has an firmware archive which does have the exact firmware I am looking for. However, he  is a little sketchy, so I will have to manually verify the five firmware before I work on them.</p>
+<b>Update</b><br>
+<p>sammobile.com started asking me for money so I had to let that one go. I did further research, and I will be using <a href="https://samfw.com/">https://samfw.com/</a> to get the firmware from the missing months. The file sill still go through manual verification.</p>
+
+<h3>More sources</h3><p>
+    
+    More sources will be added as I start using them.
+</p>
+
+<h2>Samloader and Ghidra</h2>
+<h3>Samloader: <a href="https://github.com/topjohnwu/samloader-rs">https://github.com/topjohnwu/samloader-rs</a></h3>
+<p>Installing samloader is easy. Following the instructions, you need a working rust toolchain, which you can install as:</p>
+<pre>
+<code>
+sudo apt-get install rustup
+rustup default stable
+</code>
+</pre>
+<p>This will install the components we need including cargo. Then we use cargo to install samloader like:</p>
+<pre>
+<code>
+cargo install samloader
+</code>
+</pre>
+<p>The tool will now be at <code>/home/user/.cargo/bin/samloader</code>. You can edit your path to include this, or just move the tool to your working directory and execute it there. I chose the later.  Running help command on the tool reveals that you download the packages as follows:</p>
+<pre>
+<code>
+samloader download --model DEV_MODEL --region DEV_REGION
+</code>
+</pre>
+<p>That's it! and when it is done, you'll get a package like this: <code>SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip</code>. Since this is going to disappear in a month, I am going to create a copy of the file, and work on the copy and leave this one untouched. If I mess something up in the working copy, I come back to the original file and get a fresh copy. Something like this:</p>
+<pre>
+<code>
+sushant@Elfie:~/SamsungBackup$ mkdir 26Oct9Backup
+sushant@Elfie:~/SamsungBackup$ mv SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip 26Oct9Backup/
+sushant@Elfie:~/SamsungBackup$ mkdir ../SamsungResearch/26Oct9Research
+sushant@Elfie:~/SamsungBackup$ cp 26Oct9Backup/SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip ../SamsungResearch/26Oct9Research/
+sushant@Elfie:~/SamsungBackup$ ls
+26Oct9Backup  samloader
+sushant@Elfie:~/SamsungBackup$ cd 26Oct9Backup/
+sushant@Elfie:~/SamsungBackup/26Oct9Backup$ ls
+SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip
+sushant@Elfie:~/SamsungBackup/26Oct9Backup$ md5sum SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip > md5sum.txt
+sushant@Elfie:~/SamsungBackup/26Oct9Backup$ sha256sum SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip > sha256sum.txt
+sushant@Elfie:~/SamsungBackup/26Oct9Backup$ cat sha256sum.txt 
+339d0ac2aef73111957656d36ccac8fa1187e5fc578593ade63a598b46066777  SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip
+sushant@Elfie:~/SamsungBackup/26Oct9Backup$ cat md5sum.txt 
+f87bb83750985e19599ffab7a6665931  SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip
+sushant@Elfie:~/SamsungBackup/26Oct9Backup$ 
+</code>
+</pre>
+<p>So now I've got a backup directory, a working directory, and checksum of the original file. Now there is 3 layers that need to be extracted, using unzip, tar and lz4. Like this:</p>
+<pre>
+<code>
+sushant@Elfie:~/SamsungResearch/26Oct9Research$ unzip SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip -d .
+Archive:  SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip
+  inflating: ./BL_A576USQS4AZI3_A576USQS4AZI3_MQB114321516_REV00_user_low_ship_MULTI_CERT.tar.md5  
+  -----------------------------------snip----------------------------
+sushant@Elfie:~/SamsungResearch/26Oct9Research$ ls
+AP_A576USQS4AZI3_A576USQS4AZI3_MQB114321516_REV00_user_low_ship_MULTI_CERT_meta_OS16.tar.md5  
+---------------------------------------snip---------------------------------
+sushant@Elfie:~/SamsungResearch/26Oct9Research$ mkdir unzip
+sushant@Elfie:~/SamsungResearch/26Oct9Research$ mv *.md5 unzip/
+sushant@Elfie:~/SamsungResearch/26Oct9Research$ ls
+SM-A576U_1_20260907163110_1dajb2p9zd_fac.zip  unzip
+sushant@Elfie:~/SamsungResearch/26Oct9Research$ cd unzip/
+sushant@Elfie:~/SamsungResearch/26Oct9Research/unzip$ ls
+BL_A576USQS4AZI3_A576USQS4AZI3_MQB114321516_REV00_user_low_ship_MULTI_CERT.tar.md5            
+-------------------------------snip-------------------------------sushant@Elfie:~/SamsungResearch/26Oct9Research/unzip$ mkdir BL
+sushant@Elfie:~/SamsungResearch/26Oct9Research/unzip$ tar -xvf BL_A576USQS4AZI3_A576USQS4AZI3_MQB114321516_REV00_user_low_ship_MULTI_CERT.tar.md5 -C BL/
+fld.bin.lz4
+--------------------------------snip---------------------------------
+sushant@Elfie:~/SamsungResearch/26Oct9Research/unzip$ cd BL/
+sushant@Elfie:~/SamsungResearch/26Oct9Research/unzip/BL$ ls
+cip.bin.lz4  dtp.bin.lz4  fld.bin.lz4  harx.bin.lz4  keystorage.bin.lz4  ldfw.img.lz4  sboot.bin.lz4  sld.bin.lz4  svm.bin.lz4  tzar.img.lz4  tzsw.img.lz4  uh.bin.lz4  up_param.bin.lz4  vbmeta.img.lz4
+sushant@Elfie:~/SamsungResearch/26Oct9Research/unzip/BL$ for f in *.lz4; do lz4 -d "$f" 
+> done
+Decoding file cip.bin 
+cip.bin.lz4                    : decoded 2097152 bytes                         
+------------------------------------snip----------------------------sushant@Elfie:~/SamsungResearch/26Oct9Research/unzip/BL$ ls
+cip.bin      dtp.bin      fld.bin      harx.bin      keystorage.bin      ldfw.img      sboot.bin      sld.bin      svm.bin      tzar.img      tzsw.img      uh.bin      up_param.bin      vbmeta.img
+cip.bin.lz4  dtp.bin.lz4  fld.bin.lz4  harx.bin.lz4  keystorage.bin.lz4  ldfw.img.lz4  sboot.bin.lz4  sld.bin.lz4  svm.bin.lz4  tzar.img.lz4  tzsw.img.lz4  uh.bin.lz4  up_param.bin.lz4  vbmeta.img.lz4
+sushant@Elfie:~/SamsungResearch/26Oct9Research/unzip/BL$ 
+</code>
+</pre>
+<p>And there you go, the firmware files have now been extracted and the binaries are ready to be loaded to Ghidra. </p>
+
+<h3>Ghidra: <a href="https://github.com/nationalsecurityagency/ghidra">https://github.com/nationalsecurityagency/ghidra</a></h3>
+<p>Installing Ghidra is also very easy. From the GitHub link, follow the Install section and download the .zip file under assets. Extract it using unzip and that's it!</p>
+<pre>
+<code>
+sushant@Elfie:~/Ghidra$ unzip ghidra_12.1.4_PUBLIC_20260921.zip -d .
+Archive:  ghidra_12.1.4_PUBLIC_20260921.zip
+   creating: ./ghidra_12.1.4_PUBLIC/
+---------------------------------------snip----------------------
+sushant@Elfie:~/Ghidra$ ls
+ghidra_12.1.4_PUBLIC  ghidra_12.1.4_PUBLIC_20260921.zip
+sushant@Elfie:~/Ghidra$ cd ghidra_12.1.4_PUBLIC/
+sushant@Elfie:~/Ghidra/ghidra_12.1.4_PUBLIC$ ls
+Extensions  GPL  GettingStarted.html  GettingStarted.md  Ghidra  LICENSE  bom.json  docker  docs  ghidraRun  ghidraRun.bat  licenses  server  support
+sushant@Elfie:~/Ghidra/ghidra_12.1.4_PUBLIC$ ./ghidraRun 
+</code>
+</pre>
+<p>Let's load something in Ghidra. First, you have to select the language for whatever file you want to analyze. I followed this link: <a href="https://source.android.com/docs/compatibility/cdd">https://source.android.com/docs/compatibility/cdd</a>, and according to it, the setting should be as follows:</p>
+<ul>
+<li>Processor: AARCH64 </li>
+<li>Size: 64</li>
+<li>Endian: Little</li>
+</ul><p>
+    
+    And the cores used on the phone are built on ARMv9-A architecture. But Ghidra didn't have this one. Doing some more research, I figured ARMv9-A and ARMv8-A are backwards compatible, and selecting the v8A variant and default compiler, I got:
+</p>
+<pre>
+<code>
+-------------------------------------snip-----------------------------------
+                                                 XREF[3]:     000000d8(W), 
+                                                                                                   00000110(*), 
+                                                                                                   00000118(*)  
+                             FUN_000000d8
+        000000d8 fd 7b bf a9     stp        x29,x30,[sp, #local_10]!
+        000000dc fd 03 00 91     mov        x29,sp
+        000000e0 94 01 00 94     bl         FUN_00000730                                     undefined FUN_00000730()
+        000000e4 a0 01 00 b5     cbnz       x0,LAB_00000118
+        000000e8 00 00 00 b0     adrp       x0,0x1000
+        000000ec 01 00 00 b0     adrp       x1,0x1000
+        000000f0 21 00 00 91     add        x1=>DAT_00001000,x1,#0x0                         = 43h    C
+        000000f4 00 8c 41 f9     ldr        x0,[x0, #0x318]=>DAT_00001318                    = 00000000C90031A8h
+        000000f8 02 00 40 f9     ldr        x2,[x0]=>DAT_c90031a8
+        000000fc 80 00 80 52     mov        w0,#0x4
+        00000100 40 00 3f d6     blr        x2
+        00000104 01 00 00 b0     adrp       x1,0x1000
+        00000108 21 a8 41 f9     ldr        x1=>DAT_c90031e0,[x1, #0x350]=>DAT_00001350      = 00000000C90031E0h
+        0000010c 20 00 00 b9     str        w0,[x1]=>DAT_c90031e0
+        00000110 fd 7b c1 a8     ldp        x29=>local_10,x30,[sp], #0x10
+        00000114 df ff ff 17     b          FUN_00000090                                     undefined FUN_00000090()
+                             -- Flow Override: CALL_RETURN (CALL_TERMINATOR)
+                             LAB_00000118                                    XREF[1]:     000000e4(j)  
+        00000118 fd 7b c1 a8     ldp        x29=>local_10,x30,[sp], #0x10
+        0000011c c0 03 5f d6     ret
+                             
+                             
+-----------------------------------snip------------------------------
+</code>
+</pre>
+
+<p>Question. What is this nonsese?</p>
+
+<h2>Old firmware verification</h2>
+<p>I am using samfw.com to get the firmware that I am missing. And turns out, I was wrong about how many firmware I actually missed. The release dates and bootloader revision numbers are as follows:</p>
+<ul>
+<li>2026-07-05       SW REV: 1</li>
+<li>2026-08-05       SW REV: 3</li>
+<li>2026-09-05       SW REV: 4</li>
+</ul>
+<p>The firmware released on 09-05 is the current release so I used samloader to get the firmware directly from the Samsung servers, and compared the hash with the firmware on the archive. The hashes matched! so I have a reasonable belief that this website is indeed uploading the correct firmware and not some generic ones. With the current one, directly from the Samsung server as my reference, I began comparing it to the archived firmware.</p>
+
+<b>Reference firmware from the Samsung Servers:</b>
+<pre>
+<code>
+ro.product.vendor.brand=samsung
+ro.product.vendor.device=a57x
+ro.product.vendor.manufacturer=samsung
+ro.product.vendor.model=SM-A576U
+ro.product.vendor.name=a57xsq
+ro.vendor.product.cpu.abilist=arm64-v8a
+ro.vendor.product.cpu.abilist32=
+ro.vendor.product.cpu.abilist64=arm64-v8a
+ro.vendor.qb.id=114321559
+ro.vendor.build.date=Thu Sep  3 12:41:07 KST 2026
+
+------------------------------snip-----------------------
+</code>
+</pre>
+
+<b>July Archived firmware:</b>
+<pre>
+<code>
+ro.product.vendor.brand=samsung
+ro.product.vendor.device=a57x
+ro.product.vendor.manufacturer=samsung
+ro.product.vendor.model=SM-A576U
+ro.product.vendor.name=a57xsq
+ro.vendor.product.cpu.abilist=arm64-v8a
+ro.vendor.product.cpu.abilist32=
+ro.vendor.product.cpu.abilist64=arm64-v8a
+ro.vendor.qb.id=111487385
+ro.vendor.build.date=Mon Jun 29 17:46:59 KST 2026
+
+------------------------------snip-----------------------
+</code>
+</pre>
+
+<b>August Archived Firmware:</b>
+<pre>
+<code>
+ro.product.vendor.brand=samsung
+ro.product.vendor.device=a57x
+ro.product.vendor.manufacturer=samsung
+ro.product.vendor.model=SM-A576U
+ro.product.vendor.name=a57xsq
+ro.vendor.product.cpu.abilist=arm64-v8a
+ro.vendor.product.cpu.abilist32=
+ro.vendor.product.cpu.abilist64=arm64-v8a
+ro.vendor.qb.id=113432764
+ro.vendor.build.date=Fri Aug 14 17:40:46 KST 2026
+
+------------------------------snip-----------------------
+</code>
+</pre>
+<p>
+    The device identifiers are same, so I moved on to see if I could find any cryptographic keys in the package. I found this key:
+    <pre><code>meta-data/OTA/tools/pub_SM-A576U_NA_XAU_EKEY5.pem</code></pre>
+    This key in the OTA package is used by the device to verify the package authenticity and integrity before applying the updates. And to my surprise, it was the same key in all packages:
+</p>
+<pre>
+<code>
+-----BEGIN PUBLIC KEY-----
+MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA0Xp0emv3H6FsxpHfgDZr
+JrIZ9Sl9p3NAA3Nc3lVrnvcUu6cQmX9vjzPsKi0ukJqfcdgj3haj06t7I7tylU72
+ShWVlqOOyXDAxakqeY6lZtVxU2hMSB4320rzquzJUHSM8j4V9b9bTYEPjbYdZIWg
+jz3LAQLUOv4609FbH77e0NAA5hhRwn9PeINaBtUKqIo/sN73pnwnPbuLX12MQ1BJ
+UsGRGAsPtLccdWbM5qFn6muqZhKnmY/WG18N90sjBNw3deRXcstYu4OhetdIA0Q0
+spLGBe0tykQnKiW8R6NGJqR6Bnn0UuTnmNyFwEfzz/7JLtbd+GBht6ruDz6Mt3ei
+5/QaNsW3NsBH1DdnnVX1VGIdE3UzLaM1pwz8OwB1GUkKP5B4uqDbsj+8jpvIb7CS
+VPVJcIpq8hSjcmrPoX/EGY11w1qwp2j7ZBUfIxehotew0GvLz4kljw2vIhb4ANHG
+GAdbCStG42jLV0PoS7U4wh6tgavplmxvxOslyWPNGiiCv5TU0TCRNgV8XKGxLL7x
+tf5nsPaxwv7D01Nbp4WRqm7tdeeI2hTX9BuwZjQAPbhLmAddqlA6Qgg5L6YGMH5J
+Hw4fUjvNUrk0qQNfWlHJBQTI4LFLGKs64u7I343ZoljZv3jL9FfUdVwVMAPZ+sK7
+kzTuSEGkOSJSQcDQJGOIa0kCAwEAAQ==
+-----END PUBLIC KEY-----
+</code>
+</pre>
+<p>It does make sense because the private key is embedded in a fuse in the SoC and this is the corresponding public key for it. But does that mean that I can provide a modified firmware with this key and my problem is solved? Probably not but hey, the archived firmware packages are verified to a reasonable extent. I checked multiple different websites for the firmware hashes and they all reported the same hash, and all firmware have the same identifiers and same public keys. Could multiple websites be conspiring, uniformly modifying and repackaging the firmware for months July and August but uploading legitimate firmware for September? yes. Could my name not be Sushant? yes.</p>
+
+<h2>Break</h2>
+<p>Looking at all these files made me realize that I know next to nothing about how this actually works on this specific phone. I did ran diff tho. Here is what I got:</p>
+
+<p>July release vs August release:</p>
+<pre>
+<code>
+Files 26July05Research/AP/boot.img.lz4 and 26August05Research/AP/boot.img.lz4 differ
+Files 26July05Research/AP/dtbo.img.lz4 and 26August05Research/AP/dtbo.img.lz4 differ
+Files 26July05Research/AP/init_boot.img.lz4 and 26August05Research/AP/init_boot.img.lz4 differ
+Files 26July05Research/AP/meta-data/BOOT/RAMDISK/system/bin/snapuserd and 26August05Research/AP/meta-data/BOOT/RAMDISK/system/bin/snapuserd differ
+Files 26July05Research/AP/meta-data/BOOT/RAMDISK/system/bin/snapuserd_ramdisk and 26August05Research/AP/meta-data/BOOT/RAMDISK/system/bin/snapuserd_ramdisk differ
+Files 26July05Research/AP/meta-data/BOOT/RAMDISK/system/etc/ramdisk/build.prop and 26August05Research/AP/meta-data/BOOT/RAMDISK/system/etc/ramdisk/build.prop differ
+Files 26July05Research/AP/meta-data/fota_info.txt and 26August05Research/AP/meta-data/fota_info.txt differ
+Files 26July05Research/AP/meta-data/fota.zip and 26August05Research/AP/meta-data/fota.zip differ
+Files 26July05Research/AP/meta-data/MAP/system_ext.map and 26August05Research/AP/meta-data/MAP/system_ext.map differ
+Files 26July05Research/AP/meta-data/MAP/system.map and 26August05Research/AP/meta-data/MAP/system.map differ
+Files 26July05Research/AP/meta-data/META/apex_info.pb and 26August05Research/AP/meta-data/META/apex_info.pb differ
+Files 26July05Research/AP/meta-data/META/care_map.pb and 26August05Research/AP/meta-data/META/care_map.pb differ
+Files 26July05Research/AP/meta-data/META/misc_info.txt and 26August05Research/AP/meta-data/META/misc_info.txt differ
+Files 26July05Research/AP/meta-data/OTA/tools/aapt2 and 26August05Research/AP/meta-data/OTA/tools/aapt2 differ
+Files 26July05Research/AP/meta-data/OTA/tools/build_fingerprint.txt and 26August05Research/AP/meta-data/OTA/tools/build_fingerprint.txt differ
+Files 26July05Research/AP/meta-data/OTA/tools/proca_attrs.txt and 26August05Research/AP/meta-data/OTA/tools/proca_attrs.txt differ
+
+------------------------------------snip------------------------------------
+</code>
+</pre>
+<p>August vs September:</p>
+<pre>
+<code>
+Files 26August05Research/AP/boot.img.lz4 and 26Oct9Research/AP/boot.img.lz4 differ
+Files 26August05Research/AP/dtbo.img.lz4 and 26Oct9Research/AP/dtbo.img.lz4 differ
+Files 26August05Research/AP/init_boot.img.lz4 and 26Oct9Research/AP/init_boot.img.lz4 differ
+Files 26August05Research/AP/meta-data/BOOT/RAMDISK/system/etc/ramdisk/build.prop and 26Oct9Research/AP/meta-data/BOOT/RAMDISK/system/etc/ramdisk/build.prop differ
+Files 26August05Research/AP/meta-data/fota_info.txt and 26Oct9Research/AP/meta-data/fota_info.txt differ
+Files 26August05Research/AP/meta-data/fota.zip and 26Oct9Research/AP/meta-data/fota.zip differ
+Files 26August05Research/AP/meta-data/MAP/system.map and 26Oct9Research/AP/meta-data/MAP/system.map differ
+Files 26August05Research/AP/meta-data/MAP/vendor.map and 26Oct9Research/AP/meta-data/MAP/vendor.map differ
+Files 26August05Research/AP/meta-data/META/apex_info.pb and 26Oct9Research/AP/meta-data/META/apex_info.pb differ
+Files 26August05Research/AP/meta-data/META/care_map.pb and 26Oct9Research/AP/meta-data/META/care_map.pb differ
+Files 26August05Research/AP/meta-data/META/misc_info.txt and 26Oct9Research/AP/meta-data/META/misc_info.txt differ
+Files 26August05Research/AP/meta-data/OTA/tools/aapt2 and 26Oct9Research/AP/meta-data/OTA/tools/aapt2 differ
+Files 26August05Research/AP/meta-data/OTA/tools/build_fingerprint.txt and 26Oct9Research/AP/meta-data/OTA/tools/build_fingerprint.txt differ
+Files 26August05Research/AP/meta-data/OTA/tools/proca_attrs.txt and 26Oct9Research/AP/meta-data/OTA/tools/proca_attrs.txt differ
+
+--------------------------------------snip--------------------------------------------
+</code>
+</pre>
+<p>I see what files are changing between the updates but I don't know what that those files contain. So this project will take a little break. I will be on the other one dissecting the first firmware until I have enough information to understand what the updates were, why did it mattered, and if it is useful for me.</p>
+<p>
+    
+    See you soon!(26Oct10)
+</p>
+
+
+
+</body>
+</html>

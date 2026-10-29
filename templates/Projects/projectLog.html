@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Library, UMBC, Project Log</title>
+
+    <link rel = "stylesheet" href="../../static/style.css"> 
+
+</head>
+<body>
+   
+<h1>Project Log</h1>
+
+<b>GitHub Repository:</b> https://github.com/DAMSlabUMBC/libraryProject
+
+
+<p>This project log documents the development of the Smart Library, a project which is part of the Smart Campus initiative at UMBC under the leadership of Dr. Roberto Yus. </p> 
+
+<p>Smart Library project aims to develop a smarter and more personalized library experience using IoT and real time environmental data to help students find library spaces that best suit their needs and preferences. This project includes the design and development of systems that can leverage information such as temperature, lighting, noise levels, and other environmental variables to provide intelligent recommendations and improve the students' library experience. </p>
+
+<p>The team members working on this project are Sushant Adhikari, Ibrahim Syed, Muhammad Fasihuddin, and Abdu Mahgoub. This project log is written and maintained by Sushant Adhikari. References to “I” or “me” throughout the log refer to Sushant. Work performed by other team members is identified by their name.</p>
+
+<h2> Original Design</h2>
+<p>I have designed the system and backend architecture until the point where the backend is production-ready. Some things that aren't in my design are the installation of the nodes, and final recommendation app. Reasons being the library will have a major hand in how the nodes will be installed and because the final app is a major component which will make the delivery even smarter with caches, previous recommendations, and predictions. The original design will be taken as a guide and will not be just "adapted", so the design may be updated in every phase.
+The original design documents can be found here:  https://github.com/1SUSHANT1/libraryApp/tree/main/OriginalDesignDocuments </p>
+
+<h3>Phases</h3>
+<p>These are general description of the phases. Please refer to the Original Design Documents to see the full descriptions. </p>
+
+<b>Phase 1: Genesis</b>
+
+<p>Phase 1 lays the overall foundation where we cover how the ESP32s will collect the data, do some edge computing, parse the data and send it to a Raspberry PI over HTTP which will then put the data in a database and run an app which can retrieve the data from the database. The deliverables and reusables from this phase are: </p>
+<ul>
+<li>Sensor data acquisition method</li>
+<li>Sampling Interval</li>
+<li>Averaging methodology</li>
+<li>JSON data structure</li>
+</ul>
+
+<b>Phase 2: MQTT Integration</b>
+
+<p>I designed phase 1 to use HTTP to send traffic because of my experience with HTTP, JSON, and APIs. This will allow me to lead the team through the fundamentals of how the data is generated, formatted, transmitted and received, but the final version of the system will use MQTT, so in this phase we replace the HTTP from phase 1 with MQTT. We will receive assistance from a member of Dr. Yus's office with the implementation. The knowledge gained about MQTT in this phase will be expanded by our group in the later phases. The deliverables and reusables from this phase are:</p>
+<ul>
+<li>MQTT communication architechture</li>
+</ul>
+<b>Phase 3: Scaling Up</b>
+<p>
+        
+        In this phase, the architecture from the previous phases will be made scalable. The phases above will be approached with scalability in mind but this phase will test it and modify the architecture so that new nodes can be added to with minimal effort. Ideally, the effort will be as small as giving the nodes new identifiers and they will automatically be integrated in the existing communication architecture automatically as they come online. The deliverables and reusables from this phase are:
+</p>
+<ul>
+<li>Multi-node scalability and node management</li>
+</ul>
+<b>Phase 4: Backend Deployment</b>
+<p>
+        
+        In this phase, we replace the Raspberry Pi with the designated backend server, so the nodes, instead of reporting locally to the Pi, they will be sending their data to the designated UMBC backend server which will maintain a database of the readings. The app will also be modified to pull the data from the backend server instead of the Pi. This is the final phase of the backend architecture and these components will be validated for final design in this phase:
+</p>
+<ul>
+<li>Complete backend architecture and integration.</li>
+<li>Sensor to backend data pipeline</li>
+<li>MQTT communication with backend infrastructure</li>
+<li>Database storage and retrieval</li>
+<li>Multi-node backend support</li>
+<li>Application to backend integration</li>
+</ul>
+<b>Following phase</b>
+<p>
+        
+        After Phase 4, we will move toward installing and deploying the system in the library. As I mentioned before, the library will play a significant role in determining how the sensor nodes are deployed, whether existing library resources can be used, and whether any aspects of the system need to be redesigned to meet their requirements.
+</p>
+<p>
+        
+        The original design documents stop here because the deployment process will be developed in collaboration with the library and within the specific requirements and constraints they establish.
+</p>
+
+<b>Cost Estimate and Phase 1 Blueprint</b>
+<p>
+        
+        The original design documents also contain the cost estimate and the phase 1 blueprint. Our group estimated the number of nodes by walking around the library and locating areas where we can, and should install the nodes. Additionally, I also created phase 1 blueprint so we have a clearer objective of how to get started. Other phases do not have a blueprint because the subsequent phases will use the previous phase as a foundation.
+</p>
+
+<h3>Project Logs</h3>
+<h3>Overview</h3>
+<p>
+        
+        I have set the deadlines for each phase so that we can complete the backend design and hopefully begin the process with the library before the end of the semester. To stay on track, every day our group meets, I will establish a specific goal for that day for the group to work toward. If we are unable to complete the goal during the meeting, we will take some devices home and continue working so that we can catch up.
+</p>
+<p>
+        
+        Our group meets every Monday and Wednesday. At the beginning of each meeting, we discuss any developments or work that was completed if someone took devices home. I will then explain the goal for the day, and we will work together to accomplish it.
+</p>
+<p>
+        
+        This document is intended to serve as a standalone record of the project's development. For this reason, key code snippets are included directly in the document for reference.
+</p>
+
+<h3>Wednesday, September 9 2026</h3>
+
+<b>Members:</b> Sushant, Ibrahim, Muhammad
+<b>Goal:</b>  Estimate the resources we need for the project
+<p>
+        
+        We walked around the library and estimated the number of nodes required on each floor of the library . Then we created the estimate document and presented to Dr. Yus. We also requested the devices we need to build the prototype.
+</p>
+
+<h3>Wednesday, September 16 2026</h3>
+
+<b>Members:</b> Sushant, Ibrahim, Muhammad
+<b>Goal:</b> Unbox everything, and have an ESP32 send something (anything) over HTTP to the Pi.
+<p>
+        
+        We had just gotten the devices, so we took everything out the boxes and started the setup. I took the Raspberry Pi because of my experience with Linux and headless servers, and Ibrahim and Muhammad took the ESP32 because of their experience with ESP32s, sensors, and sensor libraries. Ibrahim and Muhammad made some progress but I couldn't even access the Pi.
+</p>
+<p>
+        
+        During the flashing process, I gave the Pi  WiFi credentials but it never connected to the WiFi. I tried multiple operating systems, and mobile phone's hotspot, but the Pi never connected. There was a HDMI cable but no monitor in the lab accepted HDMI interface so I was just stuck.
+</p>
+<p>
+        
+        Ibrahim and Muhammad however, made a significant more progress I did. They accessed the ESP32 and were working with the sensor libraries. However, we ran out of time and decided that I would take the Pi home and make it accessible, and my team would take the ESP32 and the sensors home to hopefully get readings.
+</p>
+
+<h3>Monday, September 21 2026</h3>
+
+<b>Members:</b> Sushant Adhikari, Ibrahim Syed, Muhammad Fasihuddin,  Abdu Mahgoub
+<b>Goal:</b> Send some data from the ESP32 to the Pi. 
+<p>
+        
+        First we discussed what we did at home. I explained that I fixed the Pi problem by connecting it with a monitor. Ibrahim and Muhammad told me how they were able to get the temperature readings from the sensor. The sound sensor readings were not reliable enough for this phase, so we decided not to implement them yet.
+</p>
+<p>
+        
+        I wrote the server app, and then all of us focused on getting the ESP32 to send the data to the Pi. Since Abdu was new today, and not everybody was on board with my design, I thought it would be best to understand the design before jumping into individual tasks. I used:
+</p>
+<p>
+        
+        The server app:
+</p>
+<pre>
+<code>
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+
+@app.route("/sensor", methods=["POST"])
+def receive_sensor_data():
+
+        data = request.get_json()
+
+        if data is None:
+                return jsonify({
+                "status":"success",
+                "message":"Empty"
+                }), 400
+
+        print("Received sensor data:")
+        print(data)
+
+        return jsonify({
+        "status": "success",
+        "message": "Data received"
+        }), 200
+
+
+if __name__ == "__main__":
+        app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=False
+        )
+</code>
+</pre>
+<p>The client script:</p>
+
+<pre>
+<code>
+#!/bin/bash
+
+curl -X POST http://127.0.0.1:5000/sensor \
+-H "Content-Type: application/json" \
+-d '{"temp": "34"}'
+</code>
+</pre>
+<p>The result:</p>
+<pre>
+<code>
+-----------snip--------------
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.249:5000
+Press CTRL+C to quit
+Received sensor data:
+{'temp': '34'}
+127.0.0.1 - - [21/Sep/2026 15:55:36] "POST /sensor HTTP/1.1" 200 -
+</code>
+</pre>
+<p>To explain things like Flask, request, json, jsonify, and http connection, and why I included them in my design. Then we ended the meeting and decided that in the next meeting, we would work on using the HTTPClient module on the ESP32 to send the json formatted data from the ESP32 to the PI over http.</p>
+
+<h3>Wednesday, September 23 2026</h3>
+<b>Members:</b> Sushant Adhikari, Ibrahim Syed, Muhammad Fasihuddin
+<b>Goal:</b> Send JSON formatted data from the ESP32 to the PI over HTTP
+<p>
+        
+        Ibrahim and Muhammad were working on formatting the data in JSON and implementing the HTTPClient library. Here is the code snippet they wrote for formatting the data in JSON:
+</p>
+<pre>
+<code>
+void postTemperature(float temperatureC) { 
+JsonDocument readingsJson; 
+readingsJson["node"] = nodeId; 
+readingsJson["temperature_C"] = temperatureC; 
+String payload; serializeJson(readingsJson, payload);
+</code>
+</pre>
+<p>Here is the code they wrote for sending the data over HTTP using post:</p>
+<pre>
+<code>
+HTTPClient http; http.begin(serverUrl); 
+http.addHeader("Content-Type", "application/json"); 
+int statusCode = http.POST(payload); 
+Serial.printf("POST %s -> %d\n", payload.c_str(), statusCode); 
+http.end(); }
+</code>
+</pre>
+<p>While they were doing this, I modified my server's python code from the previous meeting to write the data to a file:</p>
+<pre>
+<code>
+with currentPath.open("w") as file:
+		file.write(json.dumps(data))
+</code>
+</pre>
+<p>Then I also wrote the application code which will retrieve the JSON formatted data from the file:</p>
+<pre>
+<code>
+from pathlib import Path
+import json
+
+readData=Path("data.json")
+if readData.exists():
+	with readData.open("r") as file:
+		contentjson=json.load(file)
+		temp=contentjson.get("temperature_C")
+		print("temp:", temp)
+		node=contentjson.get("node")
+		print("node:", node)
+
+else:
+	print("doesn't exist")
+</code>
+</pre><p>
+        
+        Then we started the ESP32 and the Pi server and received data like this:
+</p>
+<pre>
+<code>
+faibsu@raspberrypi:~/Documents $ python3 server.py 
+ * Serving Flask app 'server'
+--------------------SNIP-------------------
+10.137.89.106 - - [23/Sep/2026 12:06:02] "POST /sensors HTTP/1.1" 200 -
+10.137.89.106 - - [23/Sep/2026 12:06:08] "POST /sensors HTTP/1.1" 200 -
+10.137.89.106 - - [23/Sep/2026 12:06:13] "POST /sensors HTTP/1.1" 200 -
+</code>
+</pre>
+<p>And the application could retrieve the data like:</p>
+<pre>
+<code>
+faibsu@raspberrypi:~/Documents $ python3 app.py 
+temp: 26.15092
+node: 56
+</code>
+</pre>
+<b>The following things were demonstrated</b>
+<ul>
+<li>Sensor readings were collected</li>
+<li>Data was formatted to JSON at the edge</li>
+<li>The data was transmitted to the Pi</li>
+<li>The Pi ran a server which received the data and stored it</li>
+<li>The application retreived the data</li>
+</ul><p>
+        
+        Now that this pipeline is established, in our next meeting we will implement PostgreSQL to store the data in a database and modify the application to retrieve the data from it.
+</p>
+
+
+<h3>Monday, October 5 2026</h3>
+<b>Goal:</b> Edge computing on the ESP32 and modifying the server to insert the data to the database
+<br>
+<b>Members:</b> Sushant Adhikari, Muhammad Fasihuddin, Ibrahim Syed
+<br>
+<p>Since we still hadn't gotten the sound sensors, and much of the edge computing was to be done on the sound readings, today I just integrated the standalone app from the previous meeting into the server and application codes. Muhammad and Ibrahim ran the ESP32 which sent the real temperature data and simulated sound readings and we verified that the server can now insert the live data into the database and also the app can retrieve the data from the database. </p>
+<p>
+        
+        Since the work on server side is  mostly done for phase 1, next meeting we will
+</p>work on integrating the sound sensors to the prototype and edge computing.
+
+
+<h3>Wednesday, October 7 2026</h3>
+<b>Goal:</b> Edge computing on the ESP32 and integrating sound sensors
+<br>
+<b>Members:</b> Sushant Adhikari, Ibrahim Syed, Muhammad Fasihuddin 
+<br>
+<p>We were still unable to get the sound sensors today, so Ibrahim and Muhammad worked on edge computing on the temperature readings. Until now, the ESP32 sent the data as soon as it read it. But today, a big improvement was made where the ESP32 read the temperature data every 5 seconds, collected the data over a minute, calculated the average and transmitted the average to the server. Here is a code snippet:</p>
+<pre>
+<code>
+void loop() {
+  unsigned long now = millis();
+
+  if (now - lastSampleMs >= sampleIntervalMs) {
+    lastSampleMs = now;
+    if (bme.performReading()) {
+      temperatureWindow.add(bme.temperature + temperatureOffsetC);
+    } else {
+      Serial.println("BME680 reading failed");
+    }
+  }
+
+  if (now - lastReportMs >= reportIntervalMs && temperatureWindow.count > 0) {
+    lastReportMs = now;
+    if (WiFi.status() != WL_CONNECTED) connectToWifi();
+    postReading(temperatureWindow.average());
+    temperatureWindow.reset();
+  }
+}
+</code>
+</pre><p>
+        
+        I ran the server and verified that the ESP32 logic worked as intended using the timestamps.
+</p>
+<p>
+        
+        Later in the day, we were able to get the new sound sensors so hopefully, we will complete Phase 1 on the next meeting.
+</p>
+
+<h3>Thursday, October 15 2026</h3>
+<b>Goal:</b> Edge computing on the ESP32 and integrating sound sensors
+<br>
+<b>Members:</b> Sushant Adhikari, Ibrahim Syed, Muhammad Fasihuddin 
+<br>
+<p>Muhammad had soldered pins to the sound sensors so we can easily attach wires and work on them. Today, all of us worked on the ESP32s, integrating the sound sensors and doing edge computing.</p> 
+<p>The sound reading is recorded every second over a minute. The readings are then used to compute an average and the maximum sound reading, which we called soundSpike. Both of these are added to JSON before transmitting them with the other data. I also modified the server, database and the app to recognize and store the newly added data. </p>
+
+<p>Since today wasn't our regular meeting, we had some time to spare where we decided to test the scalability of the system. We tested it by changing the node ID, and floor and area number. The access point, server URL, socket, sensor libraries and edge computing logic all remained the same. We put the code into another ESP32 and to our surprise, it worked! Here is how the data was being received by the server:</p>
+<pre>
+<code>
+{'node': '1', 'temperature_C': 27.1672, 'sound': 96.56432, 'soundSpike': 108.5814, 'floor': 7, 'area': 9} 
+10.137.89.106 - - [15/Oct/2026 17:44:44] "POST /sensors HTTP/1.1" 200 -
+{'node': '2', 'temperature_C': 26.6936, 'sound': 97.88071, 'soundSpike': 112.8317, 'floor': 5, 'area': 4} 
+10.137.89.230 - - [15/Oct/2026 17:45:42] "POST /sensors HTTP/1.1" 200 -
+{'node': '1', 'temperature_C': 27.4145, 'sound': 95.39439, 'soundSpike': 104.8077, 'floor': 7, 'area': 9} 
+10.137.89.106 - - [15/Oct/2026 17:45:44] "POST /sensors HTTP/1.1" 200 -
+{'node': '2', 'temperature_C': 27.1156, 'sound': 98.01826, 'soundSpike': 114.3063, 'floor': 5, 'area': 4} 
+10.137.89.230 - - [15/Oct/2026 17:46:42] "POST /sensors HTTP/1.1" 200 -
+</code>
+</pre>
+<p>The ESP32s are sending data one after another and the server is accepting them and storing them in the database.</p>
+
+<p>We also had a presentation the next day, so we took some time to prepare a presentable prototype and PowerPoint slides. The presentation had: data pipeline, ESP32 and edge computing, Server, database and the app, and the newfound scalability of the system. It also documents these upcoming updates:</p>
+
+<ol>
+<li>The data will be transmitted over MQTT instead of HTTP​</li>
+<li>The database will be changed from postgreSQL to a time-series database​</li>
+<li>The connections will be made over real WiFi networks​</li>
+<li>The PI will be replaced with a dedicated backend server​</li>
+<li>The app will be heavily be modified to get latest distinct data, and perfom dead node detection.​</li>
+<li>Static data like floor and area will be moved to a new database so the ESP32s do not send floor and area numbers every time they make connection</li>
+</ol>
+<p>With this done, Phase 1, Genesis is complete.</p>
+
+<h3>UPDATE</h3>
+During the presentation, we came to find out that we won't be receiving any assistance with MQTT integration until after Nov 5.
+That means Phase 2: MQTT integration will have to be done later. Since the system is already pretty scalable, instead of committing a huge chunk of time to Phase 3: Scaling up, we have to start materializing the project while keeping it scalable. 
+Following a meeting with the professor, the project will move forward in the following directions:
+<ul>
+<li><b>More readings from the environmental sensor:</b> The temperature sensor we are using is actually an environment sensor which is capable of reading things like pressure, humidity, release of harmful gases, etc. These readings will also be recorded by the ESP32s and transmitted to the server.
+<li><b>Connections over the Internet:</b> Until now, the connection between the ESP32 and the server were local where both devices connected to the same AP. Moving forward, the ESP32s will be configured to connect to a working WiFi and send the data to the server over the internet.
+</li>
+<li><b>Relational Database for static data: </b>Static data like floor and area number for the nodes, whether there are windows/computers in the area, and other static data will be stored in a separate database. This enables us to program all the ESP32s the same way and get the necessary attributes for the nodes from the static database. One of the advantages of this approach is that if we decide to change the location of the nodes,instead of re-programming them, we can just update the static database.</li>
+<li><b>Web Application:</b> We settled on developing a web app for the system rather than a mobile app. The pipeline here can be similar to the pipeline used by my website sushantadk.com: Web Server (nginx)->Application server(Gunicorn)->Web framework(Flask/Fast API)->Data.
+</li>
+<li><b>User profile and privacy</b>: The app will store user preferences using cookies which will later be used to recommend the spaces without them having to input them every time. This will be clearly disclosed on the privacy notice and the student will always reserve the right to deny the use of cookies.
+</li>
+</ul>
+
+</body>
+</html>
