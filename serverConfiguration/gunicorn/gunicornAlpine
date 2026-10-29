@@ -4,7 +4,7 @@ name="Gunicorn"
 description="Gunicorn WSGI server for myWebsite"
 
 command="gunicorn"
-command_args="--bind 127.0.0.1:8000 --chdir /home/user/Projects myPyScript:app"
+command_args="--bind 127.0.0.1:8000 --chdir /home/user/myProjects myPyScript:app"
 
 command_user="gunicorn:webManagers"
 command_background="yes"

@@ -2073,10 +2073,12 @@ x-content-type-options: nosniff
 cf-ray: a51fb6c46a09d9f6-EWR
 alt-svc: h3=":443"; ma=86400
 </pre></code>
-<p>Damn! did it really restore my vandalized server?</p>
+<p>It means that not only the app can now build a server, it can also recover a misconfigured server (to some extent).</p>
 
 <h2>Success!</h2>
-<p>The app can now build and configure fully functional HTTPS web servers with a cross-platform support for Debian, Alpine Linux, and Nura. To be fair, I discovered it works on Nura when I found out Nura was a thing, about 5 mins ago. But we are not done still. I noticed Nura does this:</p>
+<p>        
+        The app can now build and configure fully functional HTTPS web servers with a cross-platform support for Debian, Alpine Linux, and Nura. To be fair, I discovered it works on Nura when I found out Nura was a thing, about 5 mins ago. But we are not done still. I noticed Nura does this:
+</p>
 <pre><code>
 The following NEW packages will be installed:
   py3-gunicorn py3-gunicorn-pyc
@@ -2085,6 +2087,32 @@ After this operation, 1731 KiB of additional disk space will be used.
 Do you want to continue [Y/n]? Y
 </code>
 </pre>
-<p>So this means we can pass the option "Y" when we run the subprocess, and this is the only difference I noticed from a real Alpine Linux server. Next, I will add this functionality, advance the cleanUp app, prepare a README, and add some custom configurations for myself before declaring phase 1 complete. But between you and me, it is already complete.</p>
+<p>So this means we should use non-interactive installation. This was an easy fix:</p>
+<pre><code>
+elif OS=="alpine":
+                        code=(subprocess.run(["apk","--no-interactive","add",service])).returncode
+</code></pre>
+<p>Next, I modified the OS detection like this:</p>
+<pre>
+<code>
+with open ("/etc/os-release") as file:
+        for line in file:
+                idField=line.strip().split("=")
+                if idField[0]=="ID":
+                        OS=idField[1].strip('"')
+                        break
+print(f"Operating system: {OS}")
+
+if OS=="ubuntu":
+        OS="debian"
+if OS=="nura":
+        OS="alpine"
+</code>
+</pre>
+<p>Yep! I added Ubuntu and sure enough, it runs without any problems because it piggybacks on the Debian implementation. I'm not saying Ubuntu and Debian are same, I am saying the implementations in the app for Ubuntu is same as the implementation for Debian. Same case with Nura, Nura can piggyback Alpine without any problems.</p>
+
+<p>But before I declare phase 1 complete, I will advance the cleanUp app, prepare a README, benchmark the build time on all four: Debian, Alpine, Ubuntu, and Nura servers, and do more rigorous testing across different server states to make sure the app works as intended. Let's advance the cleanup app before preparing a README.</p>
+
+<h2>CleanUp app</h2>
 </body>
 </html>
