@@ -1,144 +1,205 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Library, UMBC, Project Log</title>
 
-    <link rel = "stylesheet" href="../../static/style.css"> 
+<head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Smart Library, UMBC, Project Log</title>
+
+        <link rel="stylesheet" href="../../static/style.css">
 
 </head>
+
 <body>
-   
-<h1>Project Log</h1>
 
-<b>GitHub Repository:</b> https://github.com/DAMSlabUMBC/libraryProject
+        <h1>Project Log</h1>
+
+        <b>GitHub Repository:</b> https://github.com/DAMSlabUMBC/libraryProject
 
 
-<p>This project log documents the development of the Smart Library, a project which is part of the Smart Campus initiative at UMBC under the leadership of Dr. Roberto Yus. </p> 
+        <p>This project log documents the development of the Smart Library, a project which is part of the Smart Campus
+                initiative at UMBC under the leadership of Dr. Roberto Yus. </p>
 
-<p>Smart Library project aims to develop a smarter and more personalized library experience using IoT and real time environmental data to help students find library spaces that best suit their needs and preferences. This project includes the design and development of systems that can leverage information such as temperature, lighting, noise levels, and other environmental variables to provide intelligent recommendations and improve the students' library experience. </p>
+        <p>Smart Library project aims to develop a smarter and more personalized library experience using IoT and real
+                time environmental data to help students find library spaces that best suit their needs and preferences.
+                This project includes the design and development of systems that can leverage information such as
+                temperature, lighting, noise levels, and other environmental variables to provide intelligent
+                recommendations and improve the students' library experience. </p>
 
-<p>The team members working on this project are Sushant Adhikari, Ibrahim Syed, Muhammad Fasihuddin, and Abdu Mahgoub. This project log is written and maintained by Sushant Adhikari. References to “I” or “me” throughout the log refer to Sushant. Work performed by other team members is identified by their name.</p>
+        <p>The team members working on this project are Sushant Adhikari, Ibrahim Syed, and Muhammad Fasihuddin. This
+                project log is written and maintained by Sushant Adhikari. References to “I” or “me” throughout the log
+                refer to Sushant. Work performed by other team members is identified by their name.</p>
 
-<h2> Original Design</h2>
-<p>I have designed the system and backend architecture until the point where the backend is production-ready. Some things that aren't in my design are the installation of the nodes, and final recommendation app. Reasons being the library will have a major hand in how the nodes will be installed and because the final app is a major component which will make the delivery even smarter with caches, previous recommendations, and predictions. The original design will be taken as a guide and will not be just "adapted", so the design may be updated in every phase.
-The original design documents can be found here:  https://github.com/1SUSHANT1/libraryApp/tree/main/OriginalDesignDocuments </p>
+        <h2> Original Design</h2>
+        <p>I have designed the system and backend architecture until the point where the backend is production-ready.
+                Some things that aren't in my design are the installation of the nodes, and final recommendation app.
+                Reasons being the library will have a major hand in how the nodes will be installed and because the
+                final app is a major component which will make the delivery even smarter with caches, previous
+                recommendations, and predictions. The original design will be taken as a guide and will not be just
+                "adapted", so the design may be updated in every phase.
+                The original design documents can be found here:
+                https://github.com/1SUSHANT1/libraryApp/tree/main/OriginalDesignDocuments </p>
 
-<h3>Phases</h3>
-<p>These are general description of the phases. Please refer to the Original Design Documents to see the full descriptions. </p>
+        <h3>Phases</h3>
+        <p>These are general description of the phases. Please refer to the Original Design Documents to see the full
+                descriptions. </p>
 
-<b>Phase 1: Genesis</b>
+        <b>Phase 1: Genesis</b>
 
-<p>Phase 1 lays the overall foundation where we cover how the ESP32s will collect the data, do some edge computing, parse the data and send it to a Raspberry PI over HTTP which will then put the data in a database and run an app which can retrieve the data from the database. The deliverables and reusables from this phase are: </p>
-<ul>
-<li>Sensor data acquisition method</li>
-<li>Sampling Interval</li>
-<li>Averaging methodology</li>
-<li>JSON data structure</li>
-</ul>
+        <p>Phase 1 lays the overall foundation where we cover how the ESP32s will collect the data, do some edge
+                computing, parse the data and send it to a Raspberry PI over HTTP which will then put the data in a
+                database and run an app which can retrieve the data from the database. The deliverables and reusables
+                from this phase are: </p>
+        <ul>
+                <li>Sensor data acquisition method</li>
+                <li>Sampling Interval</li>
+                <li>Averaging methodology</li>
+                <li>JSON data structure</li>
+        </ul>
 
-<b>Phase 2: MQTT Integration</b>
+        <b>Phase 2: MQTT Integration</b>
 
-<p>I designed phase 1 to use HTTP to send traffic because of my experience with HTTP, JSON, and APIs. This will allow me to lead the team through the fundamentals of how the data is generated, formatted, transmitted and received, but the final version of the system will use MQTT, so in this phase we replace the HTTP from phase 1 with MQTT. We will receive assistance from a member of Dr. Yus's office with the implementation. The knowledge gained about MQTT in this phase will be expanded by our group in the later phases. The deliverables and reusables from this phase are:</p>
-<ul>
-<li>MQTT communication architechture</li>
-</ul>
-<b>Phase 3: Scaling Up</b>
-<p>
-        
-        In this phase, the architecture from the previous phases will be made scalable. The phases above will be approached with scalability in mind but this phase will test it and modify the architecture so that new nodes can be added to with minimal effort. Ideally, the effort will be as small as giving the nodes new identifiers and they will automatically be integrated in the existing communication architecture automatically as they come online. The deliverables and reusables from this phase are:
-</p>
-<ul>
-<li>Multi-node scalability and node management</li>
-</ul>
-<b>Phase 4: Backend Deployment</b>
-<p>
-        
-        In this phase, we replace the Raspberry Pi with the designated backend server, so the nodes, instead of reporting locally to the Pi, they will be sending their data to the designated UMBC backend server which will maintain a database of the readings. The app will also be modified to pull the data from the backend server instead of the Pi. This is the final phase of the backend architecture and these components will be validated for final design in this phase:
-</p>
-<ul>
-<li>Complete backend architecture and integration.</li>
-<li>Sensor to backend data pipeline</li>
-<li>MQTT communication with backend infrastructure</li>
-<li>Database storage and retrieval</li>
-<li>Multi-node backend support</li>
-<li>Application to backend integration</li>
-</ul>
-<b>Following phase</b>
-<p>
-        
-        After Phase 4, we will move toward installing and deploying the system in the library. As I mentioned before, the library will play a significant role in determining how the sensor nodes are deployed, whether existing library resources can be used, and whether any aspects of the system need to be redesigned to meet their requirements.
-</p>
-<p>
-        
-        The original design documents stop here because the deployment process will be developed in collaboration with the library and within the specific requirements and constraints they establish.
-</p>
+        <p>I designed phase 1 to use HTTP to send traffic because of my experience with HTTP, JSON, and APIs. This will
+                allow me to lead the team through the fundamentals of how the data is generated, formatted, transmitted
+                and received, but the final version of the system will use MQTT, so in this phase we replace the HTTP
+                from phase 1 with MQTT. We will receive assistance from a member of Dr. Yus's office with the
+                implementation. The knowledge gained about MQTT in this phase will be expanded by our group in the later
+                phases. The deliverables and reusables from this phase are:</p>
+        <ul>
+                <li>MQTT communication architechture</li>
+        </ul>
+        <b>Phase 3: Scaling Up</b>
+        <p>
 
-<b>Cost Estimate and Phase 1 Blueprint</b>
-<p>
-        
-        The original design documents also contain the cost estimate and the phase 1 blueprint. Our group estimated the number of nodes by walking around the library and locating areas where we can, and should install the nodes. Additionally, I also created phase 1 blueprint so we have a clearer objective of how to get started. Other phases do not have a blueprint because the subsequent phases will use the previous phase as a foundation.
-</p>
+                In this phase, the architecture from the previous phases will be made scalable. The phases above will be
+                approached with scalability in mind but this phase will test it and modify the architecture so that new
+                nodes can be added to with minimal effort. Ideally, the effort will be as small as giving the nodes new
+                identifiers and they will automatically be integrated in the existing communication architecture
+                automatically as they come online. The deliverables and reusables from this phase are:
+        </p>
+        <ul>
+                <li>Multi-node scalability and node management</li>
+        </ul>
+        <b>Phase 4: Backend Deployment</b>
+        <p>
 
-<h3>Project Logs</h3>
-<h3>Overview</h3>
-<p>
-        
-        I have set the deadlines for each phase so that we can complete the backend design and hopefully begin the process with the library before the end of the semester. To stay on track, every day our group meets, I will establish a specific goal for that day for the group to work toward. If we are unable to complete the goal during the meeting, we will take some devices home and continue working so that we can catch up.
-</p>
-<p>
-        
-        Our group meets every Monday and Wednesday. At the beginning of each meeting, we discuss any developments or work that was completed if someone took devices home. I will then explain the goal for the day, and we will work together to accomplish it.
-</p>
-<p>
-        
-        This document is intended to serve as a standalone record of the project's development. For this reason, key code snippets are included directly in the document for reference.
-</p>
+                In this phase, we replace the Raspberry Pi with the designated backend server, so the nodes, instead of
+                reporting locally to the Pi, they will be sending their data to the designated UMBC backend server which
+                will maintain a database of the readings. The app will also be modified to pull the data from the
+                backend server instead of the Pi. This is the final phase of the backend architecture and these
+                components will be validated for final design in this phase:
+        </p>
+        <ul>
+                <li>Complete backend architecture and integration.</li>
+                <li>Sensor to backend data pipeline</li>
+                <li>MQTT communication with backend infrastructure</li>
+                <li>Database storage and retrieval</li>
+                <li>Multi-node backend support</li>
+                <li>Application to backend integration</li>
+        </ul>
+        <b>Following phase</b>
+        <p>
 
-<h3>Wednesday, September 9 2026</h3>
+                After Phase 4, we will move toward installing and deploying the system in the library. As I mentioned
+                before, the library will play a significant role in determining how the sensor nodes are deployed,
+                whether existing library resources can be used, and whether any aspects of the system need to be
+                redesigned to meet their requirements.
+        </p>
+        <p>
 
-<b>Members:</b> Sushant, Ibrahim, Muhammad
-<b>Goal:</b>  Estimate the resources we need for the project
-<p>
-        
-        We walked around the library and estimated the number of nodes required on each floor of the library . Then we created the estimate document and presented to Dr. Yus. We also requested the devices we need to build the prototype.
-</p>
+                The original design documents stop here because the deployment process will be developed in
+                collaboration with the library and within the specific requirements and constraints they establish.
+        </p>
 
-<h3>Wednesday, September 16 2026</h3>
+        <b>Cost Estimate and Phase 1 Blueprint</b>
+        <p>
 
-<b>Members:</b> Sushant, Ibrahim, Muhammad
-<b>Goal:</b> Unbox everything, and have an ESP32 send something (anything) over HTTP to the Pi.
-<p>
-        
-        We had just gotten the devices, so we took everything out the boxes and started the setup. I took the Raspberry Pi because of my experience with Linux and headless servers, and Ibrahim and Muhammad took the ESP32 because of their experience with ESP32s, sensors, and sensor libraries. Ibrahim and Muhammad made some progress but I couldn't even access the Pi.
-</p>
-<p>
-        
-        During the flashing process, I gave the Pi  WiFi credentials but it never connected to the WiFi. I tried multiple operating systems, and mobile phone's hotspot, but the Pi never connected. There was a HDMI cable but no monitor in the lab accepted HDMI interface so I was just stuck.
-</p>
-<p>
-        
-        Ibrahim and Muhammad however, made a significant more progress I did. They accessed the ESP32 and were working with the sensor libraries. However, we ran out of time and decided that I would take the Pi home and make it accessible, and my team would take the ESP32 and the sensors home to hopefully get readings.
-</p>
+                The original design documents also contain the cost estimate and the phase 1 blueprint. Our group
+                estimated the number of nodes by walking around the library and locating areas where we can, and should
+                install the nodes. Additionally, I also created phase 1 blueprint so we have a clearer objective of how
+                to get started. Other phases do not have a blueprint because the subsequent phases will use the previous
+                phase as a foundation.
+        </p>
 
-<h3>Monday, September 21 2026</h3>
+        <h3>Project Logs</h3>
+        <h3>Overview</h3>
+        <p>
 
-<b>Members:</b> Sushant Adhikari, Ibrahim Syed, Muhammad Fasihuddin,  Abdu Mahgoub
-<b>Goal:</b> Send some data from the ESP32 to the Pi. 
-<p>
-        
-        First we discussed what we did at home. I explained that I fixed the Pi problem by connecting it with a monitor. Ibrahim and Muhammad told me how they were able to get the temperature readings from the sensor. The sound sensor readings were not reliable enough for this phase, so we decided not to implement them yet.
-</p>
-<p>
-        
-        I wrote the server app, and then all of us focused on getting the ESP32 to send the data to the Pi. Since Abdu was new today, and not everybody was on board with my design, I thought it would be best to understand the design before jumping into individual tasks. I used:
-</p>
-<p>
-        
-        The server app:
-</p>
-<pre>
+                I have set the deadlines for each phase so that we can complete the backend design and hopefully begin
+                the process with the library before the end of the semester. To stay on track, every day our group
+                meets, I will establish a specific goal for that day for the group to work toward. If we are unable to
+                complete the goal during the meeting, we will take some devices home and continue working so that we can
+                catch up.
+        </p>
+        <p>
+
+                Our group meets every Monday and Wednesday. At the beginning of each meeting, we discuss any
+                developments or work that was completed if someone took devices home. I will then explain the goal for
+                the day, and we will work together to accomplish it.
+        </p>
+        <p>
+
+                This document is intended to serve as a standalone record of the project's development. For this reason,
+                key code snippets are included directly in the document for reference.
+        </p>
+
+        <h3>Wednesday, September 9 2026</h3>
+
+        <b>Members:</b> Sushant, Ibrahim, Muhammad
+        <b>Goal:</b> Estimate the resources we need for the project
+        <p>
+
+                We walked around the library and estimated the number of nodes required on each floor of the library .
+                Then we created the estimate document and presented to Dr. Yus. We also requested the devices we need to
+                build the prototype.
+        </p>
+
+        <h3>Wednesday, September 16 2026</h3>
+
+        <b>Members:</b> Sushant, Ibrahim, Muhammad
+        <b>Goal:</b> Unbox everything, and have an ESP32 send something (anything) over HTTP to the Pi.
+        <p>
+
+                We had just gotten the devices, so we took everything out the boxes and started the setup. I took the
+                Raspberry Pi because of my experience with Linux and headless servers, and Ibrahim and Muhammad took the
+                ESP32 because of their experience with ESP32s, sensors, and sensor libraries. Ibrahim and Muhammad made
+                some progress but I couldn't even access the Pi.
+        </p>
+        <p>
+
+                During the flashing process, I gave the Pi WiFi credentials but it never connected to the WiFi. I tried
+                multiple operating systems, and mobile phone's hotspot, but the Pi never connected. There was a HDMI
+                cable but no monitor in the lab accepted HDMI interface so I was just stuck.
+        </p>
+        <p>
+
+                Ibrahim and Muhammad however, made a significant more progress I did. They accessed the ESP32 and were
+                working with the sensor libraries. However, we ran out of time and decided that I would take the Pi home
+                and make it accessible, and my team would take the ESP32 and the sensors home to hopefully get readings.
+        </p>
+
+        <h3>Monday, September 21 2026</h3>
+
+        <b>Members:</b> Sushant Adhikari, Ibrahim Syed, Muhammad Fasihuddin, Abdu Mahgoub
+        <b>Goal:</b> Send some data from the ESP32 to the Pi.
+        <p>
+
+                First we discussed what we did at home. I explained that I fixed the Pi problem by connecting it with a
+                monitor. Ibrahim and Muhammad told me how they were able to get the temperature readings from the
+                sensor. The sound sensor readings were not reliable enough for this phase, so we decided not to
+                implement them yet.
+        </p>
+        <p>
+
+                I wrote the server app, and then all of us focused on getting the ESP32 to send the data to the Pi.
+                Since Abdu was new today, and not everybody was on board with my design, I thought it would be best to
+                understand the design before jumping into individual tasks. I used:
+        </p>
+        <p>
+
+                The server app:
+        </p>
+        <pre>
 <code>
 from flask import Flask, request, jsonify
 
@@ -172,9 +233,9 @@ if __name__ == "__main__":
         )
 </code>
 </pre>
-<p>The client script:</p>
+        <p>The client script:</p>
 
-<pre>
+        <pre>
 <code>
 #!/bin/bash
 
@@ -183,8 +244,8 @@ curl -X POST http://127.0.0.1:5000/sensor \
 -d '{"temp": "34"}'
 </code>
 </pre>
-<p>The result:</p>
-<pre>
+        <p>The result:</p>
+        <pre>
 <code>
 -----------snip--------------
  * Running on http://127.0.0.1:5000
@@ -195,16 +256,19 @@ Received sensor data:
 127.0.0.1 - - [21/Sep/2026 15:55:36] "POST /sensor HTTP/1.1" 200 -
 </code>
 </pre>
-<p>To explain things like Flask, request, json, jsonify, and http connection, and why I included them in my design. Then we ended the meeting and decided that in the next meeting, we would work on using the HTTPClient module on the ESP32 to send the json formatted data from the ESP32 to the PI over http.</p>
+        <p>To explain things like Flask, request, json, jsonify, and http connection, and why I included them in my
+                design. Then we ended the meeting and decided that in the next meeting, we would work on using the
+                HTTPClient module on the ESP32 to send the json formatted data from the ESP32 to the PI over http.</p>
 
-<h3>Wednesday, September 23 2026</h3>
-<b>Members:</b> Sushant Adhikari, Ibrahim Syed, Muhammad Fasihuddin
-<b>Goal:</b> Send JSON formatted data from the ESP32 to the PI over HTTP
-<p>
-        
-        Ibrahim and Muhammad were working on formatting the data in JSON and implementing the HTTPClient library. Here is the code snippet they wrote for formatting the data in JSON:
-</p>
-<pre>
+        <h3>Wednesday, September 23 2026</h3>
+        <b>Members:</b> Sushant Adhikari, Ibrahim Syed, Muhammad Fasihuddin
+        <b>Goal:</b> Send JSON formatted data from the ESP32 to the PI over HTTP
+        <p>
+
+                Ibrahim and Muhammad were working on formatting the data in JSON and implementing the HTTPClient
+                library. Here is the code snippet they wrote for formatting the data in JSON:
+        </p>
+        <pre>
 <code>
 void postTemperature(float temperatureC) { 
 JsonDocument readingsJson; 
@@ -213,8 +277,8 @@ readingsJson["temperature_C"] = temperatureC;
 String payload; serializeJson(readingsJson, payload);
 </code>
 </pre>
-<p>Here is the code they wrote for sending the data over HTTP using post:</p>
-<pre>
+        <p>Here is the code they wrote for sending the data over HTTP using post:</p>
+        <pre>
 <code>
 HTTPClient http; http.begin(serverUrl); 
 http.addHeader("Content-Type", "application/json"); 
@@ -223,15 +287,16 @@ Serial.printf("POST %s -> %d\n", payload.c_str(), statusCode);
 http.end(); }
 </code>
 </pre>
-<p>While they were doing this, I modified my server's python code from the previous meeting to write the data to a file:</p>
-<pre>
+        <p>While they were doing this, I modified my server's python code from the previous meeting to write the data to
+                a file:</p>
+        <pre>
 <code>
 with currentPath.open("w") as file:
 		file.write(json.dumps(data))
 </code>
 </pre>
-<p>Then I also wrote the application code which will retrieve the JSON formatted data from the file:</p>
-<pre>
+        <p>Then I also wrote the application code which will retrieve the JSON formatted data from the file:</p>
+        <pre>
 <code>
 from pathlib import Path
 import json
@@ -248,11 +313,12 @@ if readData.exists():
 else:
 	print("doesn't exist")
 </code>
-</pre><p>
-        
-        Then we started the ESP32 and the Pi server and received data like this:
-</p>
-<pre>
+</pre>
+        <p>
+
+                Then we started the ESP32 and the Pi server and received data like this:
+        </p>
+        <pre>
 <code>
 faibsu@raspberrypi:~/Documents $ python3 server.py 
  * Serving Flask app 'server'
@@ -262,46 +328,55 @@ faibsu@raspberrypi:~/Documents $ python3 server.py
 10.137.89.106 - - [23/Sep/2026 12:06:13] "POST /sensors HTTP/1.1" 200 -
 </code>
 </pre>
-<p>And the application could retrieve the data like:</p>
-<pre>
+        <p>And the application could retrieve the data like:</p>
+        <pre>
 <code>
 faibsu@raspberrypi:~/Documents $ python3 app.py 
 temp: 26.15092
 node: 56
 </code>
 </pre>
-<b>The following things were demonstrated</b>
-<ul>
-<li>Sensor readings were collected</li>
-<li>Data was formatted to JSON at the edge</li>
-<li>The data was transmitted to the Pi</li>
-<li>The Pi ran a server which received the data and stored it</li>
-<li>The application retreived the data</li>
-</ul><p>
-        
-        Now that this pipeline is established, in our next meeting we will implement PostgreSQL to store the data in a database and modify the application to retrieve the data from it.
-</p>
+        <b>The following things were demonstrated</b>
+        <ul>
+                <li>Sensor readings were collected</li>
+                <li>Data was formatted to JSON at the edge</li>
+                <li>The data was transmitted to the Pi</li>
+                <li>The Pi ran a server which received the data and stored it</li>
+                <li>The application retreived the data</li>
+        </ul>
+        <p>
+
+                Now that this pipeline is established, in our next meeting we will implement PostgreSQL to store the
+                data in a database and modify the application to retrieve the data from it.
+        </p>
 
 
-<h3>Monday, October 5 2026</h3>
-<b>Goal:</b> Edge computing on the ESP32 and modifying the server to insert the data to the database
-<br>
-<b>Members:</b> Sushant Adhikari, Muhammad Fasihuddin, Ibrahim Syed
-<br>
-<p>Since we still hadn't gotten the sound sensors, and much of the edge computing was to be done on the sound readings, today I just integrated the standalone app from the previous meeting into the server and application codes. Muhammad and Ibrahim ran the ESP32 which sent the real temperature data and simulated sound readings and we verified that the server can now insert the live data into the database and also the app can retrieve the data from the database. </p>
-<p>
-        
-        Since the work on server side is  mostly done for phase 1, next meeting we will
-</p>work on integrating the sound sensors to the prototype and edge computing.
+        <h3>Monday, October 5 2026</h3>
+        <b>Goal:</b> Edge computing on the ESP32 and modifying the server to insert the data to the database
+        <br>
+        <b>Members:</b> Sushant Adhikari, Muhammad Fasihuddin, Ibrahim Syed
+        <br>
+        <p>Since we still hadn't gotten the sound sensors, and much of the edge computing was to be done on the sound
+                readings, today I just integrated the standalone app from the previous meeting into the server and
+                application codes. Muhammad and Ibrahim ran the ESP32 which sent the real temperature data and simulated
+                sound readings and we verified that the server can now insert the live data into the database and also
+                the app can retrieve the data from the database. </p>
+        <p>
+
+                Since the work on server side is mostly done for phase 1, next meeting we will
+        </p>work on integrating the sound sensors to the prototype and edge computing.
 
 
-<h3>Wednesday, October 7 2026</h3>
-<b>Goal:</b> Edge computing on the ESP32 and integrating sound sensors
-<br>
-<b>Members:</b> Sushant Adhikari, Ibrahim Syed, Muhammad Fasihuddin 
-<br>
-<p>We were still unable to get the sound sensors today, so Ibrahim and Muhammad worked on edge computing on the temperature readings. Until now, the ESP32 sent the data as soon as it read it. But today, a big improvement was made where the ESP32 read the temperature data every 5 seconds, collected the data over a minute, calculated the average and transmitted the average to the server. Here is a code snippet:</p>
-<pre>
+        <h3>Wednesday, October 7 2026</h3>
+        <b>Goal:</b> Edge computing on the ESP32 and integrating sound sensors
+        <br>
+        <b>Members:</b> Sushant Adhikari, Ibrahim Syed, Muhammad Fasihuddin
+        <br>
+        <p>We were still unable to get the sound sensors today, so Ibrahim and Muhammad worked on edge computing on the
+                temperature readings. Until now, the ESP32 sent the data as soon as it read it. But today, a big
+                improvement was made where the ESP32 read the temperature data every 5 seconds, collected the data over
+                a minute, calculated the average and transmitted the average to the server. Here is a code snippet:</p>
+        <pre>
 <code>
 void loop() {
   unsigned long now = millis();
@@ -323,25 +398,34 @@ void loop() {
   }
 }
 </code>
-</pre><p>
-        
-        I ran the server and verified that the ESP32 logic worked as intended using the timestamps.
-</p>
-<p>
-        
-        Later in the day, we were able to get the new sound sensors so hopefully, we will complete Phase 1 on the next meeting.
-</p>
+</pre>
+        <p>
 
-<h3>Thursday, October 15 2026</h3>
-<b>Goal:</b> Edge computing on the ESP32 and integrating sound sensors
-<br>
-<b>Members:</b> Sushant Adhikari, Ibrahim Syed, Muhammad Fasihuddin 
-<br>
-<p>Muhammad had soldered pins to the sound sensors so we can easily attach wires and work on them. Today, all of us worked on the ESP32s, integrating the sound sensors and doing edge computing.</p> 
-<p>The sound reading is recorded every second over a minute. The readings are then used to compute an average and the maximum sound reading, which we called soundSpike. Both of these are added to JSON before transmitting them with the other data. I also modified the server, database and the app to recognize and store the newly added data. </p>
+                I ran the server and verified that the ESP32 logic worked as intended using the timestamps.
+        </p>
+        <p>
 
-<p>Since today wasn't our regular meeting, we had some time to spare where we decided to test the scalability of the system. We tested it by changing the node ID, and floor and area number. The access point, server URL, socket, sensor libraries and edge computing logic all remained the same. We put the code into another ESP32 and to our surprise, it worked! Here is how the data was being received by the server:</p>
-<pre>
+                Later in the day, we were able to get the new sound sensors so hopefully, we will complete Phase 1 on
+                the next meeting.
+        </p>
+
+        <h3>Thursday, October 15 2026</h3>
+        <b>Goal:</b> Edge computing on the ESP32 and integrating sound sensors
+        <br>
+        <b>Members:</b> Sushant Adhikari, Ibrahim Syed, Muhammad Fasihuddin
+        <br>
+        <p>Muhammad had soldered pins to the sound sensors so we can easily attach wires and work on them. Today, all of
+                us worked on the ESP32s, integrating the sound sensors and doing edge computing.</p>
+        <p>The sound reading is recorded every second over a minute. The readings are then used to compute an average
+                and the maximum sound reading, which we called soundSpike. Both of these are added to JSON before
+                transmitting them with the other data. I also modified the server, database and the app to recognize and
+                store the newly added data. </p>
+
+        <p>Since today wasn't our regular meeting, we had some time to spare where we decided to test the scalability of
+                the system. We tested it by changing the node ID, and floor and area number. The access point, server
+                URL, socket, sensor libraries and edge computing logic all remained the same. We put the code into
+                another ESP32 and to our surprise, it worked! Here is how the data was being received by the server:</p>
+        <pre>
 <code>
 {'node': '1', 'temperature_C': 27.1672, 'sound': 96.56432, 'soundSpike': 108.5814, 'floor': 7, 'area': 9} 
 10.137.89.106 - - [15/Oct/2026 17:44:44] "POST /sensors HTTP/1.1" 200 -
@@ -353,34 +437,638 @@ void loop() {
 10.137.89.230 - - [15/Oct/2026 17:46:42] "POST /sensors HTTP/1.1" 200 -
 </code>
 </pre>
-<p>The ESP32s are sending data one after another and the server is accepting them and storing them in the database.</p>
+        <p>The ESP32s are sending data one after another and the server is accepting them and storing them in the
+                database.</p>
 
-<p>We also had a presentation the next day, so we took some time to prepare a presentable prototype and PowerPoint slides. The presentation had: data pipeline, ESP32 and edge computing, Server, database and the app, and the newfound scalability of the system. It also documents these upcoming updates:</p>
+        <p>We also had a presentation the next day, so we took some time to prepare a presentable prototype and
+                PowerPoint slides. The presentation had: data pipeline, ESP32 and edge computing, Server, database and
+                the app, and the newfound scalability of the system. It also documents these upcoming updates:</p>
 
-<ol>
-<li>The data will be transmitted over MQTT instead of HTTP​</li>
-<li>The database will be changed from postgreSQL to a time-series database​</li>
-<li>The connections will be made over real WiFi networks​</li>
-<li>The PI will be replaced with a dedicated backend server​</li>
-<li>The app will be heavily be modified to get latest distinct data, and perfom dead node detection.​</li>
-<li>Static data like floor and area will be moved to a new database so the ESP32s do not send floor and area numbers every time they make connection</li>
-</ol>
-<p>With this done, Phase 1, Genesis is complete.</p>
+        <ol>
+                <li>The data will be transmitted over MQTT instead of HTTP​</li>
+                <li>The database will be changed from postgreSQL to a time-series database​</li>
+                <li>The connections will be made over real WiFi networks​</li>
+                <li>The PI will be replaced with a dedicated backend server​</li>
+                <li>The app will be heavily be modified to get latest distinct data, and perfom dead node detection.​
+                </li>
+                <li>Static data like floor and area will be moved to a new database so the ESP32s do not send floor and
+                        area numbers every time they make connection</li>
+        </ol>
+        <p>With this done, Phase 1, Genesis is complete.</p>
 
-<h3>UPDATE</h3>
-During the presentation, we came to find out that we won't be receiving any assistance with MQTT integration until after Nov 5.
-That means Phase 2: MQTT integration will have to be done later. Since the system is already pretty scalable, instead of committing a huge chunk of time to Phase 3: Scaling up, we have to start materializing the project while keeping it scalable. 
-Following a meeting with the professor, the project will move forward in the following directions:
-<ul>
-<li><b>More readings from the environmental sensor:</b> The temperature sensor we are using is actually an environment sensor which is capable of reading things like pressure, humidity, release of harmful gases, etc. These readings will also be recorded by the ESP32s and transmitted to the server.
-<li><b>Connections over the Internet:</b> Until now, the connection between the ESP32 and the server were local where both devices connected to the same AP. Moving forward, the ESP32s will be configured to connect to a working WiFi and send the data to the server over the internet.
-</li>
-<li><b>Relational Database for static data: </b>Static data like floor and area number for the nodes, whether there are windows/computers in the area, and other static data will be stored in a separate database. This enables us to program all the ESP32s the same way and get the necessary attributes for the nodes from the static database. One of the advantages of this approach is that if we decide to change the location of the nodes,instead of re-programming them, we can just update the static database.</li>
-<li><b>Web Application:</b> We settled on developing a web app for the system rather than a mobile app. The pipeline here can be similar to the pipeline used by my website sushantadk.com: Web Server (nginx)->Application server(Gunicorn)->Web framework(Flask/Fast API)->Data.
-</li>
-<li><b>User profile and privacy</b>: The app will store user preferences using cookies which will later be used to recommend the spaces without them having to input them every time. This will be clearly disclosed on the privacy notice and the student will always reserve the right to deny the use of cookies.
-</li>
-</ul>
+        <h3>UPDATE</h3>
+        During the presentation, we came to find out that we won't be receiving any assistance with MQTT integration
+        until after Nov 5.
+        That means Phase 2: MQTT integration will have to be done later. Since the system is already pretty scalable,
+        instead of committing a huge chunk of time to Phase 3: Scaling up, we have to start materializing the project
+        while keeping it scalable.
+        Following a meeting with the professor, the project will move forward in the following directions:
+        <ul>
+                <li><b>More readings from the environmental sensor:</b> The temperature sensor we are using is actually
+                        an environment sensor which is capable of reading things like pressure, humidity, release of
+                        harmful gases, etc. These readings will also be recorded by the ESP32s and transmitted to the
+                        server.
+                <li><b>Connections over the Internet:</b> Until now, the connection between the ESP32 and the server
+                        were local where both devices connected to the same AP. Moving forward, the ESP32s will be
+                        configured to connect to a working WiFi and send the data to the server over the internet.
+                </li>
+                <li><b>Relational Database for static data: </b>Static data like floor and area number for the nodes,
+                        whether there are windows/computers in the area, and other static data will be stored in a
+                        separate database. This enables us to program all the ESP32s the same way and get the necessary
+                        attributes for the nodes from the static database. One of the advantages of this approach is
+                        that if we decide to change the location of the nodes,instead of re-programming them, we can
+                        just update the static database.</li>
+                <li><b>Web Application:</b> We settled on developing a web app for the system rather than a mobile app.
+                        The pipeline here can be similar to the pipeline used by my website sushantadk.com: Web Server
+                        (nginx)->Application server(Gunicorn)->Web framework(Flask/Fast API)->Data.
+                </li>
+                <li><b>User profile and privacy</b>: The app will store user preferences using cookies which will later
+                        be used to recommend the spaces without them having to input them every time. This will be
+                        clearly disclosed on the privacy notice and the student will always reserve the right to deny
+                        the use of cookies.
+                </li>
+        </ul>
+
+
+        <h3>Wednesday, October 28 2026</h3>
+        <b>Goal:</b> Discuss the new direction of the project
+        <br>
+        <b>Members:</b> Sushant Adhikari, Ibrahim Syed
+        <br>
+
+
+        Today we decided to move forward with moving to materialize the project. We conducted a physical walkthrough of
+        6th and 7th floor and decided to collect the following data for each of the area a node would be placed in:
+        <ol>
+                <li>Floor number</li>
+                <li>Area number</li>
+                <li>If the area is wheelchair accessible </li>
+                <li>Number of computers(windows and mac)</li>
+                <li>Number of seats next to a window in an area</li>
+                <li>Number of electrical outlets</li>
+                <li>Seating type</li>
+        </ol>
+        These are the static data decided to be included in the database in the first walkthrough. More static aspects
+        of the areas can be added later.
+
+
+        <h2>Recommendation engine, Backend, and Simulation</h2>
+
+        <p>2026, Nov 2, 3:23 AM. I designed and implemented the foundation for the Recommendation engine and the
+                entirety of the Backend, and here are the changes, updates, and new additions. Majority of the data
+                below are simulated, live data.</p>
+
+        <h3>Setting up</h3>
+        <h4>Server and dynamic database</h4>
+        <p>The server was updated to only accept dynamic data:</p>
+        <pre><code>
+<p>INSERT INTO sensor_readings(node,temp,sound,soundSpike,timestamp)</p>
+</code></pre>
+        <p>
+                Previously the nodes sent floor and area numbers too but they are removed now.
+                The database now looks like:
+        </p>
+        <pre><code>
+   Column   |            Type             | Collation | Nullable | Default 
+------------+-----------------------------+-----------+----------+---------
+ node       | integer                     |           |          | 
+ temp       | double precision            |           |          | 
+ sound      | double precision            |           |          | 
+ soundspike | double precision            |           |          | 
+ timestamp  | timestamp without time zone |           |          | 
+</code></pre>
+
+        <h4>New static database</h4>
+        <p>A static database was added. Here is the table format:</p>
+        <pre><code>
+    Column    |  Type   | Collation | Nullable | Default 
+--------------+---------+-----------+----------+---------
+ node         | integer |           |          | 
+ floor        | integer |           |          | 
+ maccomputers | integer |           |          | 
+ wincomputers | integer |           |          | 
+ seats        | integer |           |          | 
+ windowseats  | integer |           |          | 
+ wheelchair   | boolean |           |          | false
+ outlets      | integer |           |          | 
+</code></pre>
+        <p>This is where all the static data will be stored.</p>
+
+        <h4>Materialized View</h4>
+        <p>Next, a materialized view was added like this:</p>
+
+        <pre>
+<code>
+library=# CREATE MATERIALIZED VIEW library_status AS
+library-# SELECT
+library-# sr.node,sr.temp,sr.sound,sr.soundSpike,sr.timestamp,
+library-# sd.floor,sd.macComputers,sd.winComputers,sd.seats,sd.windowSeats,sd.wheelchair,sd.outlets
+library-# FROM (
+library(# SELECT DISTINCT ON (sensor_readings.node)* FROM sensor_readings WHERE timestamp >= NOW() - INTERVAL '3 mi^C
+library=# CREATE MATERIALIZED VIEW library_status AS
+library-# SELECT
+library-# sr.node,sr.temp,sr.sound,sr.soundSpike,sr.timestamp,
+library-# sd.floor,sd.macComputers,sd.winComputers,sd.seats,sd.windowSeats,sd.wheelchair,sd.outlets
+library-# FROM (
+library(# SELECT DISTINCT ON (sensor_readings.node)* FROM sensor_readings WHERE timestamp >= NOW() - INTERVAL '3 minutes' ORDER BY sensor_readings.node,sensor_readings.timestamp DESC) AS sr
+library-# JOIN staticdatabase AS sd ON sr.node=sd.node;
+SELECT 12
+</code></pre>
+
+        <p>This table is very important. This is where we join the static database and the dynamic database, and when we
+                get the fresh sensor readings. This line: "SELECT DISTINCT ON (sensor_readings.node)* FROM
+                sensor_readings WHERE timestamp >= NOW() - INTERVAL '3 minutes' ORDER BY
+                sensor_readings.node,sensor_readings.timestamp DESC)" makes sure that this table only contains the
+                latest distinct readings for every node from the last 3 minutes. This will be used by the actual
+                recommendation engine and to perform recommendation engine. The table looks like this:</p>
+        <pre>
+<code>
+library=# SELECT * FROM library_status ;
+ node | temp | sound | soundspike |         timestamp          | floor | maccomputers | wincomputers | seats | windowseats | wheelchair | outlets 
+------+------+-------+------------+----------------------------+-------+--------------+--------------+-------+-------------+------------+---------
+    1 |   22 |   200 |        305 | 2026-11-02 02:31:24.773293 |     7 |            0 |            0 |     3 |           3 | f          |       9
+    2 |   20 |   162 |        300 | 2026-11-02 02:31:29.806762 |     7 |            0 |            0 |     5 |           2 | f          |      11
+    3 |   19 |   162 |        309 | 2026-11-02 02:31:34.837103 |     7 |            2 |            2 |     9 |           0 | t          |      19
+    4 |   16 |   212 |        231 | 2026-11-02 02:31:39.868797 |     7 |            0 |            0 |     7 |           0 | t          |      13
+    5 |   15 |   233 |        278 | 2026-11-02 02:31:44.899187 |     7 |            8 |            8 |     8 |           4 | f          |      21
+    6 |   20 |   160 |        257 | 2026-11-02 02:31:49.93128  |     7 |            0 |            0 |     4 |           2 | f          |       8
+    7 |   24 |   168 |        327 | 2026-11-02 02:31:54.961703 |     7 |            0 |            0 |     9 |           3 | f          |      17
+    8 |   18 |   247 |        321 | 2026-11-02 02:31:59.994883 |     7 |            0 |            0 |     9 |           3 | f          |      17
+    9 |   22 |   246 |        329 | 2026-11-02 02:32:05.028085 |     7 |            0 |            0 |     5 |           2 | f          |       9
+   10 |   21 |   202 |        234 | 2026-11-02 02:32:10.058517 |     7 |            0 |            0 |     5 |           2 | f          |       9
+   11 |   14 |   183 |        294 | 2026-11-02 02:31:14.712382 |     7 |            0 |            0 |     3 |           2 | f          |       5
+   12 |   15 |   181 |        231 | 2026-11-02 02:31:19.74352  |     7 |            2 |            2 |     4 |           2 | t          |      12
+(12 rows)
+</code>
+</pre>
+
+        <p>One of the most important properties of this Materialized table is that it can be refreshed. When it is
+                refreshed, it runs the query again and ensures that we have fresh data again. Refreshing it needs a
+                index, which was created as:</p>
+        <pre><code>
+library=# CREATE UNIQUE INDEX unex ON library_status(node);   
+</code></pre>
+        <p>Then we can refresh it with:</p>
+        <pre><code>
+library=# REFRESH MATERIALIZED VIEW CONCURRENTLY library_status ;
+REFRESH MATERIALIZED VIEW 
+</code></pre>
+
+        <p>The command 'CONCURRENTLY' allows us to keep retreiving data while the table is being refreshed.</p>
+
+        <h3>Automating</h3>
+        <h4>Simulation App</h4>
+        <p>I wrote a simulation app as follows:</p>
+        <pre>
+<code>
+#keep posting data forever
+while True:
+        # "i" is the simulated node id. I intend to have only 12 nodes for this simulation, so when 
+        # it gets to 13, I reset it to 1
+        if i==13:
+                i=1
+        # generate temperature and sound readings
+        temp=random.randint(14,24)
+        sound=random.randint(150,250)
+        # generate soundSpike
+        soundSpike=random.randint(230,330)
+        # prepare a JSON payload
+        payload={"node": i,"temperature_C":temp,"sound":sound,"soundSpike":soundSpike}
+        # use python module requests to post the data
+        response=requests.post(url,json=payload)
+        print(response.json())
+        i+=1
+        #sleep 5secs. Calculated so that for 12 nodes, one node only reports once (12x5=60)
+        time.sleep(5)
+</code>
+</pre>
+
+        <p>This simulates 12 different node, with node IDs from 1-12 sending a data to the server every minute.
+                Simulation can be made easily recognizable by adding desicions such as: "if node=9, temp=30" so that it
+                can be clearly distinguished and debugged. The comments on the code further explain the code.</p>
+
+        <h4>Refresher App</h4>
+        <p>Then I created a refresher app which refreshes the materialized table once every minute. It goes like this:
+        </p>
+        <pre>
+<code>
+cur=conn.cursor()
+
+while True:
+#access exclusive lock gave me a problem
+        # refresh the view and commit changes
+        cur.execute(
+        """ REFRESH MATERIALIZED VIEW CONCURRENTLY library_status"""
+        )
+        conn.commit()
+
+        # print refreshed so I know when exactly it is refreshing.
+        print("refreshed")
+        # sleep for a minute and refresh again
+        time.sleep(60)
+</code>
+</pre>
+
+        <p>The bigger engineering design behind this is that since each node is sending a data every minute, we can also
+                just refresh the active table every minute. This prevents frequents merging of databases which would be
+                computationally expensive. So, instead of refreshing the active table every time a student puts in a
+                request, we independently handle refreshing the table ourselves in a time we see fit.</p>
+
+        <h4>App and the recommendation engine</h4>
+        <p>Here is a snippet from the earliest implementation of the recommendation engine:</p>
+        <pre><code>
+cur=conn.cursor()
+
+#ORDER:
+# 1 node
+# 2 temp
+# 3 sound
+# 4 soundSpike
+# 5 timestamp
+# 6 floor
+# 7 macComputers
+# 8 winComputers
+# 9 seats
+# 10 windowseats
+# 11 wheelchair
+# 12 outlets
+#for row in rows:
+#	print(row)
+
+
+def preferenceEngine(temp,sound):
+	# 2 dictionaries, one to keep score and the other to store node id as key and the data as values for easy retreival
+	scoreKeeper={}
+	node_data={}
+	# get the data in the library_status
+	cur.execute(
+	""" SELECT * FROM library_status ORDER BY node"""
+	)
+
+	#get all rows
+	rows = cur.fetchall()
+	for row in rows:
+		#update node_data which is a key value pair of node and data
+		node_data[row[0]]=row;
+
+		# variable and helper variables to count matched to the preference
+		tempCon=0
+		soundCon=0
+		score=0
+
+		# assign numbers to helper variables
+		if row[1]>20:
+			tempCon=1
+		elif row[1]<16:
+			tempCon=2
+		else:
+			tempCon=3
+
+		if row[2]>210:
+			soundCon=1
+		elif row[2]<180:
+			soundCon=2
+		else:
+			soundCon=3
+
+		# use the helper variable to calculate score
+		if tempCon==int(temp):
+			score+=1
+		if soundCon==int(sound):
+			score+=1
+		# store the score for each node in the scorekeepeer
+		scoreKeeper[row[0]]=score
+
+	# sort the data in the scorekeeper by highest score first
+	sorted_data=dict(sorted(scoreKeeper.items(), key=lambda ITEM: ITEM[1], reverse=True))
+
+	# give maximum 5 recommendations. if there is less than 5 rows, stop early
+	count=0
+	for node,score in sorted_data.items():
+		print(f"Recommendation {count+1}")
+		print(f"Floor: {node_data[node][5]}, Area: {node_data[node][0]}")
+		print(f"Temperature is {node_data[node][1]}, sound is {node_data[node][2]}")
+		print(f"There are {node_data[node][8]} seats, and {node_data[node][11]} outlets")
+		print()
+		count+=1
+		if count > 5:
+			break
+
+while True:
+	temp=input("Enter your temperature preference. 1: HOT, 2: COLD, 3: MODERATE: ")
+	sound=input("Enter your sound preference. 1: LOUD, 2: QUIET, 3: MODERATE: ")
+	print()
+
+	preferenceEngine(temp,sound)
+</code>
+</pre>
+
+        <p>This is only like a proof of concept for now and recommendations can be improved further. One of the
+                improvements that seem necessary are distinguishing between extremes and moderate. For example, if a
+                student wants a cold area, this engine does recommend cold areas, but once there are no more cold areas,
+                it doensn't distinguish between hot and moderate temperatures. Ideally, the app should recommend
+                moderate areas before recommending hot areas when a student wants cold areas. This is one of the many
+                updates the engine will have. Here is how it works:</p>
+        <pre><code>
+(venv) faibsu@raspberrypi:~/libraryProject/Prototype/application $ python3 app.py 
+Enter your temperature preference. 1: HOT, 2: COLD, 3: MODERATE: 2
+Enter your sound preference. 1: LOUD, 2: QUIET, 3: MODERATE: 2
+
+Recommendation 1
+Floor: 7, Area: 6
+Temperature is 15.0, sound is 178.0
+There are 4 seats, and 8 outlets
+
+Recommendation 2
+Floor: 7, Area: 12
+Temperature is 14.0, sound is 174.0
+There are 4 seats, and 12 outlets
+
+Recommendation 3
+Floor: 7, Area: 3
+Temperature is 20.0, sound is 159.0
+There are 9 seats, and 19 outlets
+
+Recommendation 4
+Floor: 7, Area: 4
+Temperature is 20.0, sound is 173.0
+There are 7 seats, and 13 outlets
+
+Recommendation 5
+Floor: 7, Area: 1
+Temperature is 22.0, sound is 225.0
+There are 3 seats, and 9 outlets
+
+Recommendation 6
+Floor: 7, Area: 2
+Temperature is 20.0, sound is 193.0
+There are 5 seats, and 11 outlets
+
+Enter your temperature preference. 1: HOT, 2: COLD, 3: MODERATE: 
+</code></pre>
+
+        <p>These are the actual, recent live results returned by the database.</p>
+
+        <h2>Section Summary</h2>
+        <p>This is a foundation for the backend. Many things will be changed, updated, and improved in the future.
+                However, the final product won't be too different from this.</p>
+
+
+        <h2>Complete Web data pipeline and framework foundation</h2>
+        <p>2026 Nov 3 , 11:07. As mentioned above, I implemented the web pipeline: nginx -> gunicorn -> flask. </p>
+        <h3>NGINX setup</h3>
+        <ul>
+                <li>Install NGINX using the appropriate package repository.</code></li>
+                <li>Optionally, I had to disable the default server at: /etc/nginx/sites-enabled/default by commenting
+                        out the "listen" instructions:
+
+                        <pre>
+<code>
+server {
+#       listen 80 default_server;
+#       listen [::]:80 default_server;
+</code>
+</pre>
+                        <p>You may also be able to remove the file entirely depending on the operating system.</p>
+                </li>
+
+                <li>Then i wrote the following configuration file:
+                        <pre>
+<code>
+server{
+        listen 80 default_server;
+        listen [::]:80 default_server;
+
+        location /flaskEndpoint/{
+                proxy_pass http://127.0.0.1:8080;
+        }
+
+        location /server/{
+                alias /home/faibsu/libraryProject/Prototype/server/;
+                index index.html;
+        }
+
+}
+</code>
+</pre>
+                        <p>It does 3 things. Listen on port 80, reverse proxy "/flaskEndpoint/" location to port 8080 in
+                                localhost, and serve the index file directly upon request.</p>
+                </li>
+        </ul>
+
+        <h3>Gunicorn setup</h3>
+        <p>The gunicorn setup is minimal, as I have not yet created the system files for gunicorn, but rather I am
+                launching it directly from the gunicorn using python as follows:</p>
+        <pre><code>
+python3 -m gunicorn --bind 127.0.0.1:8080  flaskEndpoint:app & > /dev/null 2>&1
+</code></pre>
+        <p>It binds to the address where NGINX reverse proxies and runs the flask app.</p>
+
+        <h3>Flask App</h3>
+        <p>The flask app is the same recommendation engine as above, but has been converted to accept JSON data, unpack
+                and process them, and pack the response in JSON and send it back. Here is a snippet:</p>
+        <pre>
+<code>
+@app.route("/flaskEndpoint/",methods=["POST"])
+def preferenceEngine():
+
+	data=request.get_json()
+
+	if data is None:
+		return jsonify({"status":"success","message": "empty"}), 400
+	temp=data.get("temperature")
+	sound=data.get("sound")
+---------------------snip---------------------------
+	count=0
+	recommendation={}
+	for node,score in sorted_data.items():
+		recommendation[count+1]={
+			"floor":f"{node_data[node][5]}", "area":f"{node_data[node][0]}",
+			"temp":f"{node_data[node][1]}", "sound":  f"{node_data[node][2]}",
+			"seats":f"{node_data[node][8]}", "outlets":f"{node_data[node][11]}"}
+
+		count+=1
+		if count > 4:
+			break
+	return jsonify({
+	"status":"success",
+	"message":"Data Received",
+	"recommendations":list(recommendation.values())
+	}),200
+</code>
+</pre>
+        <p>Basically, instead of getting the input and displaying the output on the terminal, now it gets JSON formatted
+                input and responds with a JSON formatted output.</p>
+
+        <h3>Index File</h3>
+        <p>The javascript on the index file is what enables the user input to come back to the server, and display the
+                response on the website. For the first design, I went with buttons because asking users to type in exact
+                temperature and sound values wouldn't be very user friendly. Here is a snippet of what happens when the
+                user clicks submit:</p>
+        <pre>
+<code>
+let jsonData=JSON.stringify(selections);
+
+<!-- POST the json data to the endpoint called /flaskEndpoint-->
+let response=await fetch ('/flaskEndpoint/',{
+method: 'POST',
+headers: {'Content-Type': 'application/json'},
+body:jsonData});
+
+<!-- wait for it to return -->
+let result=await response.json();
+
+<!-- create a container for the recommendations section created above-->
+let container = document.getElementById("recommendations");
+<!-- iterate the returned recommendations keeping track of index and the returned item-->
+for (let [index, item] of result.recommendations.entries()) {
+
+<!-- create a card -->
+        let card = document.createElement("div");
+        card.innerHTML = `
+        <h3>Recommendation ${index + 1}</h3>
+        <p>Floor ${item.floor}, Area: ${item.area}</p>
+        <p>The temperature is: ${item.temp} C and the Sound is: ${item.sound} dB</p>
+        <p>There are ${item.seats} seats and ${item.outlets} outlets</p>
+        `;
+<!-- append the card to the container so it displays-->
+container.appendChild(card);
+}
+</code>
+</pre>
+        <p>The user input is converted to JSON and posted to the flask endpoint. When a response is returned, it unpacks
+                the JSON, constructs recommendation cards over a loop. Then it joins the cards to the pre-defined
+                container, and finally the result is displayed on the website.</p>
+
+        <h2>How to implement this?</h2>
+        <p>This is not a guide on how to configure the system. This is just a guide on how to use the system I have
+                configured. To get everything working, you have to do the following in order.</p>
+        <ul>
+                <li>Activate python virtual environment</li>
+                <li>Start the flask server which receives the sensor readings from the nodes. Located at:
+                        /home/faibsu/libraryProject/Prototype/server/server.py </li>
+                <li>Start the python app which sends simulated sensor readinds to the server. Located at:
+                        /home/faibsu/libraryProject/Prototype/application/simulation.py</li>
+                <li>Start the refresher app which refreshes the database every minute. Located at:
+                        /home/faibsu/libraryProject/Prototype/application/refresher.py</li>
+                <li>Start NGINX using the appropriate system manager.</li>
+                <li>Start gunicorn on a python virtual environment, bind it to the address NGINX is reverse proxying to
+                        and run the flaskEndpoint app. The flaskEndpoint app is located at:
+                        /home/faibsu/libraryProject/Prototype/application/flaskEndpoint.py</li>
+                <li>Open your browser and go to: http://SERVER_IP_ADDRESS/server/index.html</li>
+                <li>Then if you enter your preferences, you'll get the appropriate recommendations.</li>
+        </ul>
+
+        <p><b>Important:</b> This assumes that you are working on the server I have configured. Doing this will not
+                configure the server or set up the databases. The data is live, but still simulated. File names,
+                locations, and content may change over time, so the setup described above may only work for the commit
+                17 on GitHub.</p>
+
+        <h2>Recommendation engine advanced, web app deployed, and feedback</h2>
+        <h3>Recommendation engine</h3>
+        <p>2026 Nov 9 , 11:07. I ended up creating my own scoring system for the recommendation engine. It goes like
+                this: assign Hot, Moderate and Cold the numbers 1,2 and 3 respectively (lively,moderate,quiet for sound)
+                on the javascript and transmit it to the server. When we go through the materialized view, assign the
+                same values 1,2 and 3 to the temperature and sound on the area. Then the score is calculated as follows:
+        </p>
+        <pre>
+<code>
+        score=score-abs((int(temp)-int(tempCon)))-abs((int(sound)-int(soundCon)))
+</code>
+</pre>
+        <p>This single line replaced the previous implementation which was more complex, used conditionals, and wasn't
+                effective. The idea is that the difference between the desired value and the actual value can give us
+                how far we are from the desired state. For instance, if the desired state is 1 (hot), and the actual
+                state is also 1 (hot), 1-1=0 so we are right where we want to be. However, if the space is 2 (moderate),
+                |1-2|=1, so we are off by 1, and if the space is 3 (cold), |1-3|=2, so we are off by 3. Greater
+                difference will result in lower score, and it also solves the problem with the earlier implementation by
+                gradually moving from the desired state, to state off by 1, and the state off by 2.</p>
+
+        <h3>Web App build</h3>
+        <p>I built the web app around the original implementation, so most the data pipeline is same but the
+                presentation is different. Following things were added:</p>
+        <ul>
+                <li>Three different sections: Landing, Preference Selection, and Recommendations</li>
+                <li>All the buttons were made intuitive and user friendly through the use of CSS, emojis, colors, etc.
+                </li>
+                <li>Updated javascript to work with the newer implementation of the recommendation engine.</li>
+                <li>Highlight on the selected buttons which disappear once submit is pressed.</li>
+                <li>Cards which present the recommendations.</li>
+                <li>Other CSS elements to make the app user-friendly, and attractive.</li>
+        </ul>
+
+        <h3>Web App deployment</h3>
+        <p>Since the web app uses the same web pipeline as my website: nginx->gunicorn->flask->data, I deployed the web
+                app, and the entirety of its backend on my server, and is currently publicly reachable at: <a
+                        href="https://sushantadk.com/Projects/index.html">https://sushantadk.com/Projects/index.html</a>.
+                My server is serving the app and all it's functinalities including the interactable buttons, user
+                friendly cards, updated CSS, newer recommendation engine, and is providing appropriate recommendations.
+        </p>
+        <p><b>Important:</b> The final product will be deployed on the UMBC servers, not my server.</p>
+
+        <h3>Feedback</h3>
+        <p>I presented the app to the professor, and suggested that we get feedback from the other students. The
+                professor agreed, so I wrote the message and sent it to the professor who forwarded it to the DAMS lab
+                group. The students are testing the app, and I have received some feedbacks already, so I will take some
+                time to go through them, test them, decide if they go into production, and get back to the students.</p>
+
+
+
+
+        <h3>Wednesday, September 9 2026</h3>
+
+        <b>Members:</b> Sushant Adhikari
+        <br>
+        <b>Goal:</b> Conduct library walkthrough and collect static data
+
+        <p>I collected the static data from the floor 6 and 7 on the library and collected the static data:</p>
+        <pre>
+<code>
+library=# SELECT * FROM staticdatabase ;
+ node | floor | maccomputers | wincomputers | seats | windowseats | wheelchair | outlets | area 
+------+-------+--------------+--------------+-------+-------------+------------+---------+------
+    1 |     7 |            0 |            0 |     2 |           2 | f          |       4 |    1
+    2 |     7 |            0 |            0 |     2 |           2 | f          |       8 |    2
+    3 |     7 |            0 |            0 |     9 |           3 | f          |      12 |    3
+    4 |     7 |            0 |            0 |    12 |           2 | f          |      45 |    4
+    5 |     7 |            0 |            0 |    12 |           4 | f          |      45 |    5
+    6 |     7 |            0 |            0 |    12 |           2 | f          |      45 |    6
+    7 |     7 |            0 |            0 |     9 |           3 | f          |      12 |    7
+    8 |     7 |            0 |            0 |    12 |           2 | f          |      24 |    8
+    9 |     7 |            0 |            0 |    12 |           4 | f          |      24 |    9
+   10 |     7 |            0 |            0 |     2 |           2 | f          |       4 |   10
+   11 |     6 |            0 |            0 |     6 |           3 | f          |       4 |    1
+   12 |     6 |            2 |            0 |     5 |           0 | t          |      16 |    2
+   13 |     6 |            0 |            6 |     8 |           2 | f          |      28 |    3
+   14 |     6 |            2 |            0 |     4 |           0 | f          |      16 |    4
+   15 |     6 |            0 |            0 |     7 |           3 | f          |      16 |    5
+   16 |     6 |            0 |            0 |     7 |           3 | f          |      16 |    6
+   17 |     6 |            0 |            0 |     8 |           2 | t          |      20 |    7
+   18 |     6 |            0 |            0 |    10 |           2 | f          |      12 |    8
+   19 |     6 |            0 |            0 |     8 |           4 | f          |      20 |    9
+   20 |     6 |            0 |            0 |    10 |           2 | f          |      12 |   10
+   21 |     6 |            0 |            0 |     9 |           4 | f          |      12 |   11
+   22 |     6 |            0 |            0 |     8 |           4 | f          |      16 |   12
+(22 rows)
+</pre>
+        </code>
+
+        <h3>Database, simulation app, and Web App advanced</h3>
+        <p>2026 Nov 10. I updated the database with the "real" data collected the day before. Then I also updated the
+                simulation script to account for the added nodes.</p>
+
+        <h4>Web App Advanced</h4>
+        <p>Here are some of the major changes I have applied follwing up with the recommendaitons I received:</p>
+        <ul>
+                <li>Created an left-to-right UI for desktops</li>
+                <li>Added header and footer with links to: About, DAMS Lab, Contact, and Provacy Page</li>
+                <li>Added a feature where the app automatically scrolls to the recommendaions once they load.</li>
+                <li>Temperature converted to Farenheit from Celsius</li>
+                <li>And many other changes including the words, sentences, colors, visual feedbacks, etc</li>
+        </ul>
+
+
 
 </body>
+
 </html>
